@@ -4,19 +4,12 @@ var config = require('C:/Users/xinyi/Documents/lwm2m-node-lib/config'),
 	thingShadow = require('aws-iot-device-sdk').thingShadow,
 	async = require('async'),
 	fs = require('fs'),
+	homeStateNew = require('./homeState').stateNew,
+	homeState = require('./homeState').state,
 	globalServerInfo,
 	separator = '\n\n\t';
 
-var homeState = {
-	state: {
-		reported: {
-			DoorLocked: false,
-			KitchenLights: false,
-			LivingRoomLights: false,
-			temperature: 0
-		}
-	}
-};
+
 //lwm2m function
 function handleResult(message) {
 	return function(error) {
@@ -48,12 +41,10 @@ function setHandlers(serverInfo, callback) {
 
 function registrationHandler(endpoint, lifetime, version, binding, payload, callback) {
 	setTimeout(function (){
-		switch(endpoint){
+		switch(endpoint.slice(0, 6)){
 			case "embARC":
-				console.log("embARC connected");
-				lwm2mServer.getDevice("embARC", function (num, device){
-					embarcFunction(device.id);
-				});
+				console.log("%s connected", endpoint);	
+				embarcFunction(endpoint, payload);
 				break;
 			case "other":
 				break;
@@ -65,93 +56,115 @@ function registrationHandler(endpoint, lifetime, version, binding, payload, call
 	callback();
 }
 
-function embarcFunction(id) {
-	var i,
-		Oid = m2mid.getOid('temperature').value,
-		Rid = m2mid.getRid(Oid, 'sensorValue').value;
-	/*observe some resource*/
-	lwm2mServer.observe(id , Oid, 0, Rid, obsTemp, function (){
-		console.log('observe temerature\n');
-	});	
-	Oid = m2mid.getOid('pushButton').value,
-	Rid = m2mid.getRid(Oid, 'dInState').value;
-	for (i = 0; i < 3; i++){
-		lwm2mServer.observe(id , Oid, i, Rid, _obsBtn(i), function (){
-			console.log('observe button \n');
-		});
-	}
-}
-
-function _obsBtn(i){
-	function obsBtn(value){
-		console.log("button put %d\n", i);
-		switch(i){
-			case 0:
-				homeState.state.reported.DoorLocked = !homeState.state.reported.DoorLocked;
-				var homeStateSend = {
-					state: {
-						reported: {
-							DoorLocked : homeState.state.reported.DoorLocked
-						}
-					}
-				}
+function write(endpoint, Oid, i, Rid, value) {
+	var def = m2mid.getRdef(Oid, Rid);
+	if (def.access == 'R')
+		return ;
+	lwm2mServer.getDevice(endpoint, function (num, device){
+		if (device == null)
+			return;
+		var payload;
+		switch(def.type){
+			case "boolean":
+				payload = value ? '1' : '0';
 				break;
-			case 1:
-				homeState.state.reported.KitchenLights = !homeState.state.reported.KitchenLights;
-				var homeStateSend = {
-					state: {
-						reported: {
-							KitchenLights : homeState.state.reported.KitchenLights
-						}
-					}
-				}
+			case "float":
+				payload = value.toString();
 				break;
-			case 2:
-				homeState.state.reported.LivingRoomLights = !homeState.state.reported.LivingRoomLights;
-				var homeStateSend = {
-					state: {
-						reported: {
-							LivingRoomLights : homeState.state.reported.LivingRoomLights
-						}
-					}
-				}
+			default:
+				payload = value.toString();
 				break;
 		}
-		genericOperation('update', homeStateSend);
+		if(payload != null)
+	    	lwm2mServer.write(device.id, Oid, i, Rid, payload, handleResult('Value written successfully'));
+	});
+}
+
+// function read(commands) {
+//     	lwm2mServer.getDevice(commands[0], function (num, device){
+// 		if (device == null)
+// 			return;
+// 	    lwm2mServer.read(
+// 	        device.id,
+// 	        commands[1],
+// 	        commands[2],
+// 	        commands[3],
+// 	        function (err, res){
+// 	        	if(err)
+// 	        		return;
+// 	        	else
+// 	        		return res;
+// 	        });
+// 	});
+// }
+
+function embarcFunction(endpoint, payload) {
+	var i,
+		Oid,
+		Rid;
+	/*parser the reg payload*/
+	// payload.match();
+	// payload = </0/0>,</0/1>,</0/2>,</1/1>,</2/0>,</2/1>,</2/2>,</2/3>,</2/4>,</3/0>,</4/0>,</5/0>,</6>,</7>
+	/*observe some resource*/
+	lwm2mServer.getDevice(endpoint, function (num, device){
+		Oid = m2mid.getOid('temperature').value;
+		Rid = m2mid.getRid(Oid, 'sensorValue').value;
+		lwm2mServer.observe(device.id, Oid, 0, Rid, _obsTemp(0, 'embARC'), function (){
+			console.log('observe temerature\n');
+		});	
+		Oid = m2mid.getOid('pushButton').value;
+		Rid = m2mid.getRid(Oid, 'dInState').value;
+		for (i = 0; i < 3; i++){
+			lwm2mServer.observe(device.id, Oid, i, Rid, _obsBtn(i, 'embARC'), function (){
+				console.log('observe button \n');
+			});
+		}
+	});
+}
+
+function _obsBtn(i, endpoint){
+	function obsBtn(value){
+		console.log("button put %d\n", i);
+		var Oid = m2mid.getOid('lightCtrl').value;
+		var Rid = m2mid.getRid('lightCtrl', 'onOff').value;
+		homeStateNew.reported[endpoint][Oid][i][Rid] = !homeState.reported[endpoint][Oid][i][Rid];
+		homeStateNew.desired[endpoint][Oid][i][Rid] = !homeState.reported[endpoint][Oid][i][Rid];
+		write(endpoint, Oid, i, Rid, homeStateNew.reported[endpoint][Oid][i][Rid]);
+		shadowSend();
 	}
 	return obsBtn;
 }
-
-function obsTemp(value){
-	console.log('temperature is %s\n', value);
-	homeState.state.reported.temperature = value;
-	var homeStateSend = {
-		state: {
-			reported: {
-				temperature : homeState.state.reported.temperature
-			}
-		}
+function _obsTemp(i, endpoint){
+	function obsTemp(value){
+		console.log('temperature is %s\n', value);
+		var Oid = m2mid.getOid('temperature').value;
+		var Rid = m2mid.getRid('temperature', 'sensorValue').value;
+		homeStateNew.reported[endpoint][Oid][i][Rid] = value;
+		shadowSend();
 	}
-	genericOperation('update', homeStateSend);
+	return obsTemp;
 }
 //aws function
-const thingShadows = thingShadow({
-	keyPath: './cert/privateKey.pem' ,
-	certPath: './cert/cert.crt' ,
-	caPath: './cert/rootCA.crt' ,
-	clientId: 'myNode1',
-	region: 'ap-southeast-1',
-	// debug: true
-});
+var thingShadows;
 const operationTimeout = 10000;
 const thingName = 'SmartHome';
 var currentTimeout = null;
 var stack = [];
 
 function aws_start(){
+	thingShadows = thingShadow({
+		keyPath: './cert/privateKey.pem' ,
+		certPath: './cert/cert.crt' ,
+		caPath: './cert/rootCA.crt' ,
+		clientId: 'myNode1',
+		region: 'ap-southeast-1',
+		// debug: true
+	});
 	aws_deviceConnect();
 	thingShadows.on('connect', function() {
 		console.log('connected to AWS IoT');
+		// genericOperation('update', {state:{reported:null,desired:null}});
+		shadowSend();
 	});
 
 	thingShadows.on('close', function() {
@@ -183,6 +196,50 @@ function aws_start(){
 		handleTimeout(thingName, clientToken);
 	});
 
+	thingShadows.on('delta', handleDelta);
+}
+
+function handleDelta(thingName, stateObject){
+	/*find the change from stateObject and send it to emsk(using lwm2m_write()) and send it to aws iot*/
+	var homeStateDelta = stateObject.state;
+	for(endpoint in homeStateDelta){
+		for(Oid in homeStateDelta[endpoint]){
+			for(i in homeStateDelta[endpoint][Oid]){
+				for(Rid in homeStateDelta[endpoint][Oid][i]){
+					write(endpoint, Oid, i, Rid, homeStateDelta[endpoint][Oid][i][Rid]);
+					homeStateNew.reported[endpoint][Oid][i][Rid] = homeStateDelta[endpoint][Oid][i][Rid];
+					shadowSend();
+				}
+			}
+		}
+	}
+	console.log("get a delta:%s\n", JSON.stringify(stateObject));
+}
+
+function genObjSend(stateNew, state){
+	var stateSend = {};
+	var empty,
+		del = true;
+	for(key in stateNew){
+		if (typeof(stateNew[key]) == "object"){
+			stateSend[key] = genObjSend(stateNew[key], state[key]);
+		} else {
+			if(stateNew[key] != state[key]){
+				stateSend[key] = stateNew[key];
+				state[key] = stateNew[key];
+			} else{
+				return ;
+			}
+		}
+	}
+	for (key in stateSend){
+		if(stateSend[key] != undefined)
+		del = false;		
+	}
+	if(del)
+		return ;
+	return stateSend;
+	
 }
 
 function genericOperation(operation, state) {
@@ -194,19 +251,16 @@ function genericOperation(operation, state) {
 	 // is pending; if no other operation is pending, reschedule it after an 
 	 // interval which is greater than the thing shadow operation timeout.
 	 //
-	 if (currentTimeout !== null) {
-		console.log('operation in progress, scheduling retry...');
-		currentTimeout = setTimeout(
-			function() {
+		console.log('operation in progress, scheduling retry in 2s...');
+		setTimeout(function() {
 				genericOperation(operation, state);
-			},
-			operationTimeout * 2);
-	 }
+			}, 2000);
+
 	} else {
 	 //
 	 // Save the client token so that we know when the operation completes.
 	 //
-	 stack.push(clientToken);
+		stack.push(clientToken);
 	}
 }
 
@@ -220,8 +274,7 @@ function aws_deviceConnect() {
 
 function handleStatus(thingName, stat, clientToken, stateObject) {
 	var expectedClientToken = stack.pop();
-
-	console.log("ok");
+	console.log("get status:%s\n", JSON.stringify(stateObject));
 
 }
 
@@ -233,6 +286,14 @@ function handleTimeout(thingName, clientToken) {
 	} else {
 		console.log('(timeout) client token mismtach on: ' + thingName);
 	}
+}
+
+function shadowSend(){
+	/*generate homeStateSend from homeStateNew and homeState in different*/
+		var homeStateSend = {};
+		homeStateSend = genObjSend(homeStateNew, homeState);
+		if(homeStateSend != undefined)
+			genericOperation("update", {state: homeStateSend});
 }
 
 //main
