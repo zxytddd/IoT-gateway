@@ -48,7 +48,7 @@
 					"type": "gauge",
 					"settings": {
 						"title": "Home Temperature",
-						"value": "(parseFloat(datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC\"][\"3303\"][\"0\"][\"5700\"])).toFixed(2)",
+						"value": "(parseFloat(datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC_1\"][\"3303\"][\"0\"][\"5700\"])).toFixed(2)",
 						"units": "C",
 						"min_value": "-20",
 						"max_value": "60"
@@ -58,7 +58,7 @@
 					"type": "indicator",
 					"settings": {
 						"title": "LED0",
-						"value": "datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC\"][\"3311\"][\"0\"][\"5850\"]",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC_1\"][\"3311\"][\"0\"][\"5850\"]",
 						"on_text": "ON",
 						"off_text": "OFF"
 					}
@@ -67,7 +67,7 @@
 					"type": "indicator",
 					"settings": {
 						"title": "LED1",
-						"value": "datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC\"][\"3311\"][\"1\"][\"5850\"]",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC_1\"][\"3311\"][\"1\"][\"5850\"]",
 						"on_text": "ON",
 						"off_text": "OFF"
 					}
@@ -76,7 +76,7 @@
 					"type": "indicator",
 					"settings": {
 						"title": "LED2",
-						"value": "datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC\"][\"3311\"][\"2\"][\"5850\"]",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC_1\"][\"3311\"][\"2\"][\"5850\"]",
 						"on_text": "ON",
 						"off_text": "OFF"
 					}
@@ -140,7 +140,7 @@
 					"settings": {
 						"title": "Temperature History",
 						"value": [
-							"datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC\"][\"3303\"][\"0\"][\"5700\"]"
+							"datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC_1\"][\"3303\"][\"0\"][\"5700\"]"
 						],
 						"include_legend": true,
 						"legend": "C"
@@ -167,8 +167,8 @@
 					"type": "interactive_indicator",
 					"settings": {
 						"title": "LED0",
-						"value": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC\"][\"3311\"][\"0\"][\"5850\"]",
-						"callback": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC\"][\"3311\"][\"0\"][\"5850\"]",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_1\"][\"3311\"][\"0\"][\"5850\"]",
+						"callback": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_1\"][\"3311\"][\"0\"][\"5850\"]",
 						"on_text": "ON",
 						"off_text": "OFF"
 					}
@@ -177,8 +177,8 @@
 					"type": "interactive_indicator",
 					"settings": {
 						"title": "LED1",
-						"value": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC\"][\"3311\"][\"1\"][\"5850\"]",
-						"callback": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC\"][\"3311\"][\"1\"][\"5850\"]",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_1\"][\"3311\"][\"1\"][\"5850\"]",
+						"callback": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_1\"][\"3311\"][\"1\"][\"5850\"]",
 						"on_text": "ON",
 						"off_text": "OFF"
 					}
@@ -187,8 +187,8 @@
 					"type": "interactive_indicator",
 					"settings": {
 						"title": "LED2",
-						"value": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC\"][\"3311\"][\"2\"][\"5850\"]",
-						"callback": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC\"][\"3311\"][\"2\"][\"5850\"]",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_1\"][\"3311\"][\"2\"][\"5850\"]",
+						"callback": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_1\"][\"3311\"][\"2\"][\"5850\"]",
 						"on_text": "ON",
 						"off_text": "OFF"
 					}

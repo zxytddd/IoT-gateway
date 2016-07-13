@@ -7,6 +7,7 @@ var config = require('C:/Users/xinyi/Documents/lwm2m-node-lib/config'),
     clUtils = require('command-node'),
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
+	btnMap = require('./btnMap'),
 	globalServerInfo,
 	separator = '\n\n\t';
 
@@ -71,6 +72,9 @@ function lwm2m_write(endpoint, Oid, i, Rid, value) {
 				break;
 			case "float":
 				payload = value.toString();
+				break;
+			case "opaque":
+				payload = value;
 				break;
 			default:
 				payload = value.toString();
@@ -171,14 +175,14 @@ function embarcFunction(endpoint, payload) {
 		Oid = m2mid.getOid('temperature').value;
 		Rid = m2mid.getRid(Oid, 'sensorValue').value;
 		if(homeState.reported[endpoint][Oid]);
-			lwm2mServer.observe(device.id, Oid, 0, Rid, _obsTemp(0, 'embARC'), function (){
+			lwm2mServer.observe(device.id, Oid, 0, Rid, _obsTemp(0, endpoint), function (){
 				console.log('observe temerature\n');
 			});	
 		Oid = m2mid.getOid('pushButton').value;
 		Rid = m2mid.getRid(Oid, 'dInState').value;
 		if(homeState.reported[endpoint][Oid]);
 			for (i in homeState.reported[endpoint][Oid]){
-				lwm2mServer.observe(device.id, Oid, i, Rid, _obsBtn(i, 'embARC'), function (){
+				lwm2mServer.observe(device.id, Oid, i, Rid, _obsBtn(i, endpoint), function (){
 					console.log('observe button \n');
 				});
 			}
@@ -190,13 +194,23 @@ function _obsBtn(i, endpoint){
 		console.log("button put %d\n", i);
 		var Oid = m2mid.getOid('lightCtrl').value;
 		var Rid = m2mid.getRid('lightCtrl', 'onOff').value;
-		homeStateNew.reported[endpoint][Oid][i][Rid] = !homeState.reported[endpoint][Oid][i][Rid];
-		homeStateNew.desired[endpoint][Oid][i][Rid] = !homeState.reported[endpoint][Oid][i][Rid];
-		lwm2m_write(endpoint, Oid, i, Rid, homeStateNew.reported[endpoint][Oid][i][Rid]);
+		var ledEndpoint, ledi;
+
+		ledEndpoint = btnMap[endpoint][i][0];
+		ledi = btnMap[endpoint][i][1];
+		if(!homeStateNew.reported[ledEndpoint]){
+			console.log("bad map, ignore it.");
+			ledEndpoint = endpoint;
+			ledi = i;
+		}
+		homeStateNew.reported[ledEndpoint][Oid][ledi][Rid] = !homeState.reported[ledEndpoint][Oid][ledi][Rid];
+		homeStateNew.desired[ledEndpoint][Oid][ledi][Rid] = !homeState.reported[ledEndpoint][Oid][ledi][Rid];
+		lwm2m_write(ledEndpoint, Oid, ledi, Rid, homeStateNew.reported[ledEndpoint][Oid][ledi][Rid]);
 		shadowSend();
 	}
 	return obsBtn;
 }
+
 function _obsTemp(i, endpoint){
 	function obsTemp(value){
 		console.log('temperature is %s\n', value);
@@ -357,26 +371,63 @@ function shadowSend(){
 		if(homeStateSend != undefined)
 			genericOperation("update", {state: homeStateSend});
 }
+
 //command-node
-function listClients(){
+function listClients(commands) {
+    lwm2mServer.listDevices(function (error, deviceList) {
+        if (error) {
+            clUtils.handleError(error);
+        } else {
+            console.log('\nDevice list:\n----------------------------\n');
+
+            for (var i=0; i < deviceList.length; i++) {
+                console.log('-> Device Id "%s"', deviceList[i].id);
+                console.log('\n%s\n', JSON.stringify(deviceList[i], null, 4));
+                resourceShow(deviceList[i].name);
+            }
+
+            clUtils.prompt();
+        }
+    });
+    function resourceShow(endpoint){
+    	if(!homeStateNew.reported[endpoint]){
+    		return;
+    	}
+    	var show = homeStateNew.reported[endpoint];
+    	for(obj in show){
+    		console.log('%s: ', m2mid.getOid(obj).key);
+    		for(instance in show[obj]){
+    			console.log('\t%d:', instance);
+    			for(resource in show[obj][instance]){
+    				console.log('\t\t%s:\t\t%s', m2mid.getRid(obj, resource).key, show[obj][instance][resource].toString());
+    			}
+    		}
+    	}
+
+    }
+}
+function write(commands){
+	
+}
+function upload(commands) {
+    fs.readFile(commands[1], 'utf8', function(err, data){
+        if(err)
+            console.log(err);
+        else{
+        	lwm2m_write(commands[0], 5, 0, 0, data);
+        }
+    })
+}
+function execute(commands){
 
 }
-function write(){
+function read(commands){
 	
 }
-function upload(){
+function observe(commands){
 	
 }
-function execute(){
-	
-}
-function read(){
-	
-}
-function observe(){
-	
-}
-function cancelObservation(){
+function cancelObservation(commands){
 	
 }
 var commands = {
@@ -392,7 +443,7 @@ var commands = {
         handler: write
     },
     'upload': {
-        parameters: ['deviceId', 'filePath'],
+        parameters: ['clientName', 'filePath'],
         description: '\tUploads the file from given filePath to' +
             'device.',
         handler: upload       
@@ -417,7 +468,7 @@ var commands = {
         description: '\tCancel the observation order for the given resource (defined with a LWTM2M URI) ' +
             'to the given device.',
         handler: cancelObservation
-    },
+    }
 };
 
 //main
