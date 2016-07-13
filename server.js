@@ -4,6 +4,7 @@ var config = require('C:/Users/xinyi/Documents/lwm2m-node-lib/config'),
 	thingShadow = require('aws-iot-device-sdk').thingShadow,
 	async = require('async'),
 	fs = require('fs'),
+    clUtils = require('command-node'),
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
 	globalServerInfo,
@@ -56,7 +57,7 @@ function registrationHandler(endpoint, lifetime, version, binding, payload, call
 	callback();
 }
 
-function write(endpoint, Oid, i, Rid, value) {
+function lwm2m_write(endpoint, Oid, i, Rid, value) {
 	var def = m2mid.getRdef(Oid, Rid);
 	if (def.access == 'R')
 		return ;
@@ -80,7 +81,7 @@ function write(endpoint, Oid, i, Rid, value) {
 	});
 }
 
-// function read(commands) {
+// function lwm2m_read(commands) {
 //     	lwm2mServer.getDevice(commands[0], function (num, device){
 // 		if (device == null)
 // 			return;
@@ -191,7 +192,7 @@ function _obsBtn(i, endpoint){
 		var Rid = m2mid.getRid('lightCtrl', 'onOff').value;
 		homeStateNew.reported[endpoint][Oid][i][Rid] = !homeState.reported[endpoint][Oid][i][Rid];
 		homeStateNew.desired[endpoint][Oid][i][Rid] = !homeState.reported[endpoint][Oid][i][Rid];
-		write(endpoint, Oid, i, Rid, homeStateNew.reported[endpoint][Oid][i][Rid]);
+		lwm2m_write(endpoint, Oid, i, Rid, homeStateNew.reported[endpoint][Oid][i][Rid]);
 		shadowSend();
 	}
 	return obsBtn;
@@ -267,7 +268,7 @@ function handleDelta(thingName, stateObject){
 		for(Oid in homeStateDelta[endpoint]){
 			for(i in homeStateDelta[endpoint][Oid]){
 				for(Rid in homeStateDelta[endpoint][Oid][i]){
-					write(endpoint, Oid, i, Rid, homeStateDelta[endpoint][Oid][i][Rid]);
+					lwm2m_write(endpoint, Oid, i, Rid, homeStateDelta[endpoint][Oid][i][Rid]);
 					homeStateNew.reported[endpoint][Oid][i][Rid] = homeStateDelta[endpoint][Oid][i][Rid];
 					shadowSend();
 				}
@@ -356,7 +357,70 @@ function shadowSend(){
 		if(homeStateSend != undefined)
 			genericOperation("update", {state: homeStateSend});
 }
+//command-node
+function listClients(){
+
+}
+function write(){
+	
+}
+function upload(){
+	
+}
+function execute(){
+	
+}
+function read(){
+	
+}
+function observe(){
+	
+}
+function cancelObservation(){
+	
+}
+var commands = {
+    'list': {
+        parameters: [],
+        description: '\tList all the devices connected to the server.',
+        handler: listClients
+    },
+    'write': {
+        parameters: ['deviceId', 'resourceId', 'resourceValue'],
+        description: '\tWrites the given value to the resource indicated by the URI (in LWTM2M format) in the given' +
+            'device.',
+        handler: write
+    },
+    'upload': {
+        parameters: ['deviceId', 'filePath'],
+        description: '\tUploads the file from given filePath to' +
+            'device.',
+        handler: upload       
+    },
+    'execute': {
+        parameters: ['deviceId', 'resourceId'],
+        description: '\tExecutes the selected resource with the given arguments.',
+        handler: execute
+    },
+    'read': {
+        parameters: ['deviceId', 'resourceId'],
+        description: '\tReads the value of the resource indicated by the URI (in LWTM2M format) in the given device.',
+        handler: read
+    },
+    'observe': {
+        parameters: ['deviceId', 'objTypeId', 'objInstanceId', 'resourceId'],
+        description: '\tStablish an observation over the selected resource.',
+        handler: observe
+    },
+    'cancel': {
+        parameters: ['deviceId', 'objTypeId', 'objInstanceId', 'resourceId'],
+        description: '\tCancel the observation order for the given resource (defined with a LWTM2M URI) ' +
+            'to the given device.',
+        handler: cancelObservation
+    },
+};
 
 //main
+clUtils.initialize(commands, 'LWM2M-Server> ');
 lwm2m_start();
 aws_start();
