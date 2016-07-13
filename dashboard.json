@@ -28,7 +28,7 @@
 			]
 		},
 		{
-			"title": "Reported Status",
+			"title": "EMSK_1 Reported",
 			"width": 1,
 			"row": {
 				"3": 5,
@@ -149,7 +149,7 @@
 			]
 		},
 		{
-			"title": "Desired Status",
+			"title": "EMSK_1 DESIRED",
 			"width": 1,
 			"row": {
 				"3": 11,
@@ -189,6 +189,89 @@
 						"title": "LED2",
 						"value": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_1\"][\"3311\"][\"2\"][\"5850\"]",
 						"callback": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_1\"][\"3311\"][\"2\"][\"5850\"]",
+						"on_text": "ON",
+						"off_text": "OFF"
+					}
+				}
+			]
+		},
+		{
+			"title": "EMSK_2 DESIRED",
+			"width": 1,
+			"row": {
+				"3": 19
+			},
+			"col": {
+				"3": 1
+			},
+			"col_width": 1,
+			"widgets": [
+				{
+					"type": "interactive_indicator",
+					"settings": {
+						"title": "LED0",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_2\"][\"3311\"][\"0\"][\"5850\"]",
+						"callback": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_2\"][\"3311\"][\"0\"][\"5850\"]",
+						"on_text": "ON",
+						"off_text": "OFF"
+					}
+				},
+				{
+					"type": "interactive_indicator",
+					"settings": {
+						"title": "LED1",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_2\"][\"3311\"][\"1\"][\"5850\"]",
+						"callback": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_2\"][\"3311\"][\"1\"][\"5850\"]",
+						"on_text": "ON",
+						"off_text": "OFF"
+					}
+				},
+				{
+					"type": "interactive_indicator",
+					"settings": {
+						"title": "LED2",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_2\"][\"3311\"][\"2\"][\"5850\"]",
+						"callback": "datasources[\"aws\"][\"SmartHome\"][\"desired\"][\"embARC_2\"][\"3311\"][\"2\"][\"5850\"]",
+						"on_text": "ON",
+						"off_text": "OFF"
+					}
+				}
+			]
+		},
+		{
+			"title": "EMSK_2 REPORTED",
+			"width": 1,
+			"row": {
+				"3": 19
+			},
+			"col": {
+				"3": 3
+			},
+			"col_width": 1,
+			"widgets": [
+				{
+					"type": "indicator",
+					"settings": {
+						"title": "LED0",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC_2\"][\"3311\"][\"0\"][\"5850\"]",
+						"on_text": "ON",
+						"off_text": "OFF"
+					}
+				},
+				{
+					"type": "indicator",
+					"settings": {
+						"title": "LED1",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC_2\"][\"3311\"][\"1\"][\"5850\"]",
+						"on_text": "ON",
+						"off_text": "OFF"
+					}
+				},
+				{
+					"type": "indicator",
+					"settings": {
+						"title": "LED2",
+						"value": "datasources[\"aws\"][\"SmartHome\"][\"reported\"][\"embARC_2\"][\"3311\"][\"2\"][\"5850\"]",
 						"on_text": "ON",
 						"off_text": "OFF"
 					}

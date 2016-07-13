@@ -8,8 +8,7 @@ var config = require('C:/Users/xinyi/Documents/lwm2m-node-lib/config'),
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
 	btnMap = JSON.parse(fs.readFileSync('./btnMap.json')),
-	globalServerInfo,
-	separator = '\n\n\t';
+	globalServerInfo;
 
 
 //lwm2m function
