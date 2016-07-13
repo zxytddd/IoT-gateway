@@ -7,7 +7,7 @@ var config = require('C:/Users/xinyi/Documents/lwm2m-node-lib/config'),
     clUtils = require('command-node'),
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
-	btnMap = require('./btnMap'),
+	btnMap = JSON.parse(fs.readFileSync('./btnMap.json')),
 	globalServerInfo,
 	separator = '\n\n\t';
 
@@ -104,6 +104,7 @@ function lwm2m_write(endpoint, Oid, i, Rid, value) {
 // }
 
 function registerParser(endpoint, payload){
+	//TODO: Add the resource to homeStateNew by different object automaticily.
 	var out = {},
 		found = payload.split('>,<'),
 		reported = {}, 
@@ -115,7 +116,7 @@ function registerParser(endpoint, payload){
 		found[key] = found[key].split('/');
 	}
 	for(key in found){
-		if(found[key][0] < 1000)
+		if(found[key][0] < 15)
 			continue;
 		if(!out[found[key][0]])
 			out[found[key][0]]={};
@@ -198,7 +199,8 @@ function _obsBtn(i, endpoint){
 
 		ledEndpoint = btnMap[endpoint][i][0];
 		ledi = btnMap[endpoint][i][1];
-		if(!homeStateNew.reported[ledEndpoint]){
+		if(!homeStateNew.reported[ledEndpoint] || !homeStateNew.reported[ledEndpoint][Oid] ||
+			!homeStateNew.reported[ledEndpoint][Oid][ledi]){
 			console.log("bad map, ignore it.");
 			ledEndpoint = endpoint;
 			ledi = i;
@@ -241,6 +243,8 @@ function aws_start(){
 	thingShadows.on('connect', function() {
 		console.log('connected to AWS IoT');
 		// genericOperation('update', {state:{reported:null,desired:null}});
+		clUtils.initialize(commands, 'LWM2M-Server> ');
+
 	});
 
 	thingShadows.on('close', function() {
@@ -430,6 +434,10 @@ function observe(commands){
 function cancelObservation(commands){
 	
 }
+function reloadMap(commands){
+	btnMap = JSON.parse(fs.readFileSync('./btnMap.json')),
+	console.log(JSON.stringify(btnMap, null, 4));
+}
 var commands = {
     'list': {
         parameters: [],
@@ -468,10 +476,15 @@ var commands = {
         description: '\tCancel the observation order for the given resource (defined with a LWTM2M URI) ' +
             'to the given device.',
         handler: cancelObservation
+    },
+    'map': {
+        parameters: [],
+        description: 'reload the map file',
+        handler: reloadMap
     }
 };
 
 //main
-clUtils.initialize(commands, 'LWM2M-Server> ');
 lwm2m_start();
 aws_start();
+// clUtils.initialize(commands, 'LWM2M-Server> ');
