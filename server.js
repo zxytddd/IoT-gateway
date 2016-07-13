@@ -98,27 +98,89 @@ function write(endpoint, Oid, i, Rid, value) {
 // 	});
 // }
 
+function registerParser(endpoint, payload){
+	var out = {},
+		found = payload.split('>,<'),
+		reported = {}, 
+		desired={};
+	found[0] = found[0].slice(1);
+	found[found.length - 1] = found[found.length - 1].slice(0, found[found.length - 1].length - 1);
+	for(key in found){
+		found[key] = found[key].slice(1);
+		found[key] = found[key].split('/');
+	}
+	for(key in found){
+		if(found[key][0] < 1000)
+			continue;
+		if(!out[found[key][0]])
+			out[found[key][0]]={};
+		if(found[key][1])
+			out[found[key][0]][found[key][1]]={};
+	}
+	reported = deepCopy(out);
+	desired = deepCopy(out);
+	for(obj in reported){
+		for(instance in reported[obj]){
+			switch(obj){
+				case "3303":
+					reported[obj][instance][5700] = false;
+					delete desired[obj];
+					break;
+				case "3311":
+					reported[obj][instance][5850] = false;
+					desired[obj][instance][5850] = false;
+					break;
+				case "3347":
+					reported[obj][instance][5500] = false;
+					desired[obj][instance][5500] = false;
+					break;
+				default:
+					break;
+			}
+		}
+	}
+	homeStateNew.reported[endpoint] = deepCopy(reported);
+	homeStateNew.desired[endpoint] = deepCopy(desired);
+	homeState.reported[endpoint] = deepCopy(reported);
+	homeState.desired[endpoint] = deepCopy(desired);
+	function deepCopy(input){
+		var output = {};
+		var empty,
+			del = true;
+		for(key in input){
+			if (typeof(input[key]) == "object"){
+				output[key] = deepCopy(input[key]);
+			} else {
+				output[key] = input[key];
+			}
+		}
+
+		return output;
+	}
+}
+
 function embarcFunction(endpoint, payload) {
 	var i,
 		Oid,
 		Rid;
 	/*parser the reg payload*/
-	// payload.match();
-	// payload = </0/0>,</0/1>,</0/2>,</1/1>,</2/0>,</2/1>,</2/2>,</2/3>,</2/4>,</3/0>,</4/0>,</5/0>,</6>,</7>
+	registerParser(endpoint, payload);
 	/*observe some resource*/
 	lwm2mServer.getDevice(endpoint, function (num, device){
 		Oid = m2mid.getOid('temperature').value;
 		Rid = m2mid.getRid(Oid, 'sensorValue').value;
-		lwm2mServer.observe(device.id, Oid, 0, Rid, _obsTemp(0, 'embARC'), function (){
-			console.log('observe temerature\n');
-		});	
+		if(homeState.reported[endpoint][Oid]);
+			lwm2mServer.observe(device.id, Oid, 0, Rid, _obsTemp(0, 'embARC'), function (){
+				console.log('observe temerature\n');
+			});	
 		Oid = m2mid.getOid('pushButton').value;
 		Rid = m2mid.getRid(Oid, 'dInState').value;
-		for (i = 0; i < 3; i++){
-			lwm2mServer.observe(device.id, Oid, i, Rid, _obsBtn(i, 'embARC'), function (){
-				console.log('observe button \n');
-			});
-		}
+		if(homeState.reported[endpoint][Oid]);
+			for (i in homeState.reported[endpoint][Oid]){
+				lwm2mServer.observe(device.id, Oid, i, Rid, _obsBtn(i, 'embARC'), function (){
+					console.log('observe button \n');
+				});
+			}
 	});
 }
 
@@ -164,7 +226,6 @@ function aws_start(){
 	thingShadows.on('connect', function() {
 		console.log('connected to AWS IoT');
 		// genericOperation('update', {state:{reported:null,desired:null}});
-		shadowSend();
 	});
 
 	thingShadows.on('close', function() {
