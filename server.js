@@ -459,7 +459,7 @@ function upload(commands) {
 					console.log("upload err: %s", JSON.stringify(err));
 				else{
 					console.log("firmware upload successful");
-					execute([command[0], 5, 0, 3]);
+					execute([commands[0], 5, 0, 2]);
 				}
 			}
 			lwm2m_write(commands[0], 5, 0, 0, data, callback);
