@@ -15,7 +15,7 @@ var config = require('C:/Users/xinyi/Documents/lwm2m-node-lib/config'),
 function handleResult(message) {
 	return function(error) {
 		if (error) {
-			console.log('err: '+error);
+			console.log('err: '+ JSON.stringify(error));
 		} else {
 			console.log('\nSuccess: %s\n', message);
 		}
@@ -174,16 +174,16 @@ function embarcFunction(endpoint, payload) {
 	lwm2mServer.getDevice(endpoint, function (num, device){
 		Oid = m2mid.getOid('temperature').value;
 		Rid = m2mid.getRid(Oid, 'sensorValue').value;
-		if(homeState.reported[endpoint][Oid]);
+		if(homeState.reported[endpoint][Oid])
 			lwm2mServer.observe(device.id, Oid, 0, Rid, _obsTemp(0, endpoint), function (){
-				console.log('observe temerature\n');
+				console.log('observe temerature');
 			});	
 		Oid = m2mid.getOid('pushButton').value;
 		Rid = m2mid.getRid(Oid, 'dInState').value;
-		if(homeState.reported[endpoint][Oid]);
+		if(homeState.reported[endpoint][Oid])
 			for (i in homeState.reported[endpoint][Oid]){
 				lwm2mServer.observe(device.id, Oid, i, Rid, _obsBtn(i, endpoint), function (){
-					console.log('observe button \n');
+					console.log('observe button');
 				});
 			}
 	});
