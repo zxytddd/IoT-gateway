@@ -4,11 +4,12 @@ var config = require('C:/Users/xinyi/Documents/lwm2m-node-lib/config'),
 	thingShadow = require('aws-iot-device-sdk').thingShadow,
 	async = require('async'),
 	fs = require('fs'),
-    clUtils = require('command-node'),
+	clUtils = require('command-node'),
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
 	btnMap = JSON.parse(fs.readFileSync('./btnMap.json')),
-	globalServerInfo;
+	globalServerInfo,
+	globalAWSFlag = false;
 
 
 //lwm2m function
@@ -57,8 +58,9 @@ function registrationHandler(endpoint, lifetime, version, binding, payload, call
 	callback();
 }
 
-function lwm2m_write(endpoint, Oid, i, Rid, value) {
-	var def = m2mid.getRdef(Oid, Rid);
+function lwm2m_write(endpoint, Oid, i, Rid, value, callback) {
+	var def = m2mid.getRdef(Oid, Rid),
+		cb;
 	if (def.access == 'R')
 		return ;
 	lwm2mServer.getDevice(endpoint, function (num, device){
@@ -79,28 +81,42 @@ function lwm2m_write(endpoint, Oid, i, Rid, value) {
 				payload = value.toString();
 				break;
 		}
-		if(payload != null)
-	    	lwm2mServer.write(device.id, Oid, i, Rid, payload, handleResult('Value written successfully'));
+		if(payload != null){
+			if(callback){
+				cb = callback;
+			} else {
+				cb = handleResult('Value written successfully');
+			}
+			lwm2mServer.write(device.id, Oid, i, Rid, payload, cb);
+		} else {
+			console.log("wrong data type");
+		}
 	});
 }
 
-// function lwm2m_read(commands) {
-//     	lwm2mServer.getDevice(commands[0], function (num, device){
-// 		if (device == null)
-// 			return;
-// 	    lwm2mServer.read(
-// 	        device.id,
-// 	        commands[1],
-// 	        commands[2],
-// 	        commands[3],
-// 	        function (err, res){
-// 	        	if(err)
-// 	        		return;
-// 	        	else
-// 	        		return res;
-// 	        });
-// 	});
-// }
+function lwm2m_read(endpoint, Oid, i, Rid, callback) {
+	lwm2mServer.getDevice(endpoint, function (num, device){
+		var cb;
+		if (device == null)
+			return;
+		if(callback){
+			cb = callback;
+		} else {
+			cb = function (err, res){
+					if(err)
+						console.log("read err: %s", JSON.stringify(err));
+					else
+						console.log(res);
+				};
+		}
+		lwm2mServer.read(
+			device.id,
+			Oid,
+			i,
+			Rid,
+			cb);
+	});
+}
 
 function registerParser(endpoint, payload){
 	//TODO: Add the resource to homeStateNew by different object automaticily.
@@ -243,11 +259,12 @@ function aws_start(){
 		console.log('connected to AWS IoT');
 		// genericOperation('update', {state:{reported:null,desired:null}});
 		clUtils.initialize(commands, 'LWM2M-Server> ');
-
+		globalAWSFlag = true;
 	});
 
 	thingShadows.on('close', function() {
 		console.log('close');
+		globalAWSFlag = false;
 		thingShadows.unregister(thingName);
 	});
 
@@ -353,7 +370,7 @@ function aws_deviceConnect() {
 
 function handleStatus(thingName, stat, clientToken, stateObject) {
 	var expectedClientToken = stack.pop();
-	console.log("get status:%s\n", JSON.stringify(stateObject));
+	console.log("get status");
 
 }
 
@@ -371,61 +388,95 @@ function shadowSend(){
 	/*generate homeStateSend from homeStateNew and homeState in different*/
 		var homeStateSend = {};
 		homeStateSend = genObjSend(homeStateNew, homeState);
-		if(homeStateSend != undefined)
+		if(homeStateSend != undefined){
+			console.log("send the state to aws:\n%s", JSON.stringify(homeStateSend, null, 4));
 			genericOperation("update", {state: homeStateSend});
+		}
 }
 
 //command-node
 function listClients(commands) {
-    lwm2mServer.listDevices(function (error, deviceList) {
-        if (error) {
-            clUtils.handleError(error);
-        } else {
-            console.log('\nDevice list:\n----------------------------\n');
+	lwm2mServer.listDevices(function (error, deviceList) {
+		if (error) {
+			clUtils.handleError(error);
+		} else {
+			console.log('\nDevice list:\n----------------------------\n');
 
-            for (var i=0; i < deviceList.length; i++) {
-                console.log('-> Device Id "%s"', deviceList[i].id);
-                console.log('\n%s\n', JSON.stringify(deviceList[i], null, 4));
-                resourceShow(deviceList[i].name);
-            }
+			for (var i=0; i < deviceList.length; i++) {
+				console.log('-> Device Id "%s"', deviceList[i].id);
+				console.log('\n%s\n', JSON.stringify(deviceList[i], null, 4));
+				resourceShow(deviceList[i].name);
+			}
 
-            clUtils.prompt();
-        }
-    });
-    function resourceShow(endpoint){
-    	if(!homeStateNew.reported[endpoint]){
-    		return;
-    	}
-    	var show = homeStateNew.reported[endpoint];
-    	for(obj in show){
-    		console.log('%s: ', m2mid.getOid(obj).key);
-    		for(instance in show[obj]){
-    			console.log('\t%d:', instance);
-    			for(resource in show[obj][instance]){
-    				console.log('\t\t%s:\t\t%s', m2mid.getRid(obj, resource).key, show[obj][instance][resource].toString());
-    			}
-    		}
-    	}
+			clUtils.prompt();
+		}
+	});
+	function resourceShow(endpoint){
+		if(!homeStateNew.reported[endpoint]){
+			return;
+		}
+		var show = homeStateNew.reported[endpoint];
+		for(obj in show){
+			console.log('%s: ', m2mid.getOid(obj).key);
+			for(instance in show[obj]){
+				console.log('\t%d:', instance);
+				for(resource in show[obj][instance]){
+					console.log('\t\t%s:\t\t%s', m2mid.getRid(obj, resource).key, show[obj][instance][resource].toString());
+				}
+			}
+		}
 
-    }
+	}
 }
+/*TODO: change payload (command[4]) to different data type
+		error check*/
 function write(commands){
-	
+	commands[4] = commands[4][0] - '0';
+	if(globalAWSFlag){
+		var callback;
+		callback = function (err){
+			if (err){
+				console.log(err);
+			} else {
+				console.log("write to lwm2m client success");
+				homeStateNew.reported[commands[0]][commands[1]][commands[2]][commands[3]] = commands[4]? true : false;
+				homeStateNew.desired[commands[0]][commands[1]][commands[2]][commands[3]] = commands[4]? true : false;
+				shadowSend();
+			}
+		}
+		lwm2m_write(commands[0], commands[1], commands[2], commands[3], commands[4], callback);
+	} else {
+		lwm2m_write(commands[0], commands[1], commands[2], commands[3], commands[4]);
+	}
 }
 function upload(commands) {
-    fs.readFile(commands[1], 'utf8', function(err, data){
-        if(err)
-            console.log(err);
-        else{
-        	lwm2m_write(commands[0], 5, 0, 0, data);
-        }
-    })
+	fs.readFile(commands[1], 'utf8', function(err, data){
+		if(err)
+			console.log(err);
+		else{
+			function callback(err){
+				if(err)
+					console.log("upload err: %s", JSON.stringify(err));
+				else{
+					console.log("firmware upload successful");
+					execute([command[0], 5, 0, 3]);
+				}
+			}
+			lwm2m_write(commands[0], 5, 0, 0, data, callback);
+		}
+	})
 }
-function execute(commands){
 
+function execute(commands) {
+	lwm2mServer.getDevice(commands[0], function (num, device){
+		if (device == null)
+			return;
+		lwm2mServer.execute(device.id, commands[1], commands[2], commands[3], null, handleResult('Command executed successfully'));
+	});
 }
+
 function read(commands){
-	
+	lwm2m_read(commands[0], commands[1], commands[2], commands[3]);
 }
 function observe(commands){
 	
@@ -438,49 +489,49 @@ function reloadMap(commands){
 	console.log(JSON.stringify(btnMap, null, 4));
 }
 var commands = {
-    'list': {
-        parameters: [],
-        description: '\tList all the devices connected to the server.',
-        handler: listClients
-    },
-    'write': {
-        parameters: ['deviceId', 'resourceId', 'resourceValue'],
-        description: '\tWrites the given value to the resource indicated by the URI (in LWTM2M format) in the given' +
-            'device.',
-        handler: write
-    },
-    'upload': {
-        parameters: ['clientName', 'filePath'],
-        description: '\tUploads the file from given filePath to' +
-            'device.',
-        handler: upload       
-    },
-    'execute': {
-        parameters: ['deviceId', 'resourceId'],
-        description: '\tExecutes the selected resource with the given arguments.',
-        handler: execute
-    },
-    'read': {
-        parameters: ['deviceId', 'resourceId'],
-        description: '\tReads the value of the resource indicated by the URI (in LWTM2M format) in the given device.',
-        handler: read
-    },
-    'observe': {
-        parameters: ['deviceId', 'objTypeId', 'objInstanceId', 'resourceId'],
-        description: '\tStablish an observation over the selected resource.',
-        handler: observe
-    },
-    'cancel': {
-        parameters: ['deviceId', 'objTypeId', 'objInstanceId', 'resourceId'],
-        description: '\tCancel the observation order for the given resource (defined with a LWTM2M URI) ' +
-            'to the given device.',
-        handler: cancelObservation
-    },
-    'map': {
-        parameters: [],
-        description: 'reload the map file',
-        handler: reloadMap
-    }
+	'list': {
+		parameters: [],
+		description: '\tList all the devices connected to the server.',
+		handler: listClients
+	},
+	'write': {
+		parameters: ['clientName', 'objTypeId', 'objInstanceId', 'resourceId', 'resourceValue'],
+		description: '\tWrites the given value to the resource indicated by the URI (in LWTM2M format) in the given' +
+			'device.',
+		handler: write
+	},
+	'upload': {
+		parameters: ['clientName', 'filePath'],
+		description: '\tUploads the file from given filePath to' +
+			'device.',
+		handler: upload		
+	},
+	'execute': {
+		parameters: ['clientName', 'objTypeId', 'objInstanceId', 'resourceId'],
+		description: '\tExecutes the selected resource with the given arguments.',
+		handler: execute
+	},
+	'read': {
+		parameters: ['clientName', 'objTypeId', 'objInstanceId', 'resourceId'],
+		description: '\tReads the value of the resource indicated by the URI (in LWTM2M format) in the given device.',
+		handler: read
+	},
+	'observe': {
+		parameters: ['deviceId', 'objTypeId', 'objInstanceId', 'resourceId'],
+		description: '\tStablish an observation over the selected resource.',
+		handler: observe
+	},
+	'cancel': {
+		parameters: ['deviceId', 'objTypeId', 'objInstanceId', 'resourceId'],
+		description: '\tCancel the observation order for the given resource (defined with a LWTM2M URI) ' +
+			'to the given device.',
+		handler: cancelObservation
+	},
+	'map': {
+		parameters: [],
+		description: 'reload the map file',
+		handler: reloadMap
+	}
 };
 
 //main
