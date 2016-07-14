@@ -212,6 +212,7 @@ function _obsBtn(i, endpoint){
 		var Rid = m2mid.getRid('lightCtrl', 'onOff').value;
 		var ledEndpoint, ledi;
 
+		btnMap = JSON.parse(fs.readFileSync('./btnMap.json'));
 		ledEndpoint = btnMap[endpoint][i][0];
 		ledi = btnMap[endpoint][i][1];
 		if(!homeStateNew.reported[ledEndpoint] || !homeStateNew.reported[ledEndpoint][Oid] ||
@@ -529,7 +530,7 @@ var commands = {
 	},
 	'map': {
 		parameters: [],
-		description: 'reload the map file',
+		description: 'show the map file',
 		handler: reloadMap
 	}
 };
