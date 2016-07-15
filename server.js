@@ -489,6 +489,9 @@ function reloadMap(commands){
 	btnMap = JSON.parse(fs.readFileSync('./btnMap.json')),
 	console.log(JSON.stringify(btnMap, null, 4));
 }
+function reboot(commands){
+	execute([commands[0], 3, 0, 4]);
+}
 var commands = {
 	'list': {
 		parameters: [],
@@ -532,6 +535,11 @@ var commands = {
 		parameters: [],
 		description: 'show the map file',
 		handler: reloadMap
+	},
+	'reboot': {
+		parameters: ['deviceId'],
+		description: 'reboot the client',
+		handler: reboot
 	}
 };
 
