@@ -8,7 +8,6 @@ var config = require('lwm2m-node-lib/config'),
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
 	btnMap = JSON.parse(fs.readFileSync('./btnMap.json')),
-	globalServerInfo,
 	globalAWSFlag = false;
 
 
@@ -31,7 +30,6 @@ function lwm2m_start() {
 }
 
 function setHandlers(serverInfo, callback) {
-	globalServerInfo = serverInfo;
 	lwm2mServer.setHandler(serverInfo, 'registration', registrationHandler);
 	lwm2mServer.setHandler(serverInfo, 'unregistration', function (device, callback) {
 		console.log('\nDevice unregistration:\n----------------------------\n');
@@ -162,22 +160,6 @@ function registerParser(endpoint, payload){
 	}
 	homeStateNew.reported[endpoint] = deepCopy(reported);
 	homeStateNew.desired[endpoint] = deepCopy(desired);
-	homeState.reported[endpoint] = deepCopy(reported);
-	homeState.desired[endpoint] = deepCopy(desired);
-	function deepCopy(input){
-		var output = {};
-		var empty,
-			del = true;
-		for(key in input){
-			if (typeof(input[key]) == "object"){
-				output[key] = deepCopy(input[key]);
-			} else {
-				output[key] = input[key];
-			}
-		}
-
-		return output;
-	}
 }
 
 function embarcFunction(endpoint, payload) {
@@ -186,23 +168,25 @@ function embarcFunction(endpoint, payload) {
 		Rid;
 	/*parser the reg payload*/
 	registerParser(endpoint, payload);
-	/*observe some resource*/
+	/*observe some resource 
+	TODO: read the start data*/
 	lwm2mServer.getDevice(endpoint, function (num, device){
 		Oid = m2mid.getOid('temperature').value;
 		Rid = m2mid.getRid(Oid, 'sensorValue').value;
-		if(homeState.reported[endpoint][Oid])
+		if(homeStateNew.reported[endpoint][Oid])
 			lwm2mServer.observe(device.id, Oid, 0, Rid, _obsTemp(0, endpoint), function (){
 				console.log('observe temerature');
 			});	
 		Oid = m2mid.getOid('pushButton').value;
 		Rid = m2mid.getRid(Oid, 'dInState').value;
-		if(homeState.reported[endpoint][Oid])
-			for (i in homeState.reported[endpoint][Oid]){
+		if(homeStateNew.reported[endpoint][Oid])
+			for (i in homeStateNew.reported[endpoint][Oid]){
 				lwm2mServer.observe(device.id, Oid, i, Rid, _obsBtn(i, endpoint), function (){
 					console.log('observe button');
 				});
 			}
 	});
+	shadowSend();
 }
 
 function _obsBtn(i, endpoint){
@@ -305,21 +289,27 @@ function handleDelta(thingName, stateObject){
 				for(Rid in homeStateDelta[endpoint][Oid][i]){
 					lwm2m_write(endpoint, Oid, i, Rid, homeStateDelta[endpoint][Oid][i][Rid]);
 					homeStateNew.reported[endpoint][Oid][i][Rid] = homeStateDelta[endpoint][Oid][i][Rid];
-					shadowSend();
 				}
 			}
 		}
 	}
+	shadowSend();
 	console.log("get a delta:%s\n", JSON.stringify(stateObject));
 }
 
 function genObjSend(stateNew, state){
 	var stateSend = {};
 	var empty,
+		key,
 		del = true;
 	for(key in stateNew){
 		if (typeof(stateNew[key]) == "object"){
-			stateSend[key] = genObjSend(stateNew[key], state[key]);
+			if(state[key] == undefined){
+				state[key] = deepCopy(stateNew[key]);
+				stateSend[key] = deepCopy(stateNew[key]);
+			}else{
+				stateSend[key] = genObjSend(stateNew[key], state[key]);
+			}
 		} else {
 			if(stateNew[key] != state[key]){
 				stateSend[key] = stateNew[key];
@@ -337,6 +327,22 @@ function genObjSend(stateNew, state){
 		return ;
 	return stateSend;
 	
+}
+
+function deepCopy(input){
+	var output = {};
+	var empty,
+		key,
+		del = true;
+	for(key in input){
+		if (typeof(input[key]) == "object"){
+			output[key] = deepCopy(input[key]);
+		} else {
+			output[key] = input[key];
+		}
+	}
+
+	return output;
 }
 
 function genericOperation(operation, state) {
