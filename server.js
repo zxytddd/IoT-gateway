@@ -1,5 +1,5 @@
-var config = require('C:/Users/xinyi/Documents/lwm2m-node-lib/config'),
-	lwm2mServer = require('C:/Users/xinyi/Documents/lwm2m-node-lib').server,
+var config = require('lwm2m-node-lib/config'),
+	lwm2mServer = require('lwm2m-node-lib').server,
 	m2mid = require('lwm2m-id'),
 	thingShadow = require('aws-iot-device-sdk').thingShadow,
 	async = require('async'),
