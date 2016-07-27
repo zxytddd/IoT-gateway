@@ -6,6 +6,7 @@ var thingShadow = require('aws-iot-device-sdk').thingShadow,
 	operationTimeout = 10000,
 	thingName = 'SmartHome',
 	currentTimeout = null,
+	globalAWSFlag = false,
 	stack = [];
 
 function start(handleDelta, callback){
@@ -132,16 +133,16 @@ function handleTimeout(thingName, clientToken) {
 
 function shadowSend(homeStateNew, homeState){
 	/*generate homeStateSend from homeStateNew and homeState in different*/
-		var homeStateSend = {};
-		homeStateSend = genObjSend(homeStateNew, homeState);
-		if(homeStateSend != undefined){
-			if(globalAWSFlag){
-				console.log("send the state to aws:\n%s", JSON.stringify(homeStateSend, null, 4));
-				genericOperation("update", {state: homeStateSend});
-			} else {
-				console.log("aws offline");
-			}
+	var homeStateSend = {};
+	homeStateSend = genObjSend(homeStateNew, homeState);
+	if(homeStateSend != undefined){
+		if(globalAWSFlag){
+			console.log("send the state to aws:\n%s", JSON.stringify(homeStateSend, null, 4));
+			genericOperation("update", {state: homeStateSend});
+		} else {
+			console.log("aws offline");
 		}
+	}
 }
 
 module.exports.start = start;

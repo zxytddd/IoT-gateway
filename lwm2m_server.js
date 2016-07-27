@@ -104,7 +104,7 @@ function write(endpoint, Oid, i, Rid, value, callback) {
 			if(callback){
 				cb = callback;
 			} else {
-				cb = handleResult('Value written successfully');
+				cb = handleResult('write to lwm2m client success');
 			}
 			lwm2mServer.write(device.id, Oid, i, Rid, payload, cb);
 		} else {

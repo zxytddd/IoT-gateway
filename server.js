@@ -6,8 +6,7 @@ var config = require('lwm2m-node-lib/config'),
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
 	deepCopy = require('./deepCopy'),
-	btnMap = JSON.parse(fs.readFileSync('./btnMap.json')),
-	globalAWSFlag = false;
+	btnMap = JSON.parse(fs.readFileSync('./btnMap.json'));
 
 var lwm2m_read = require('./lwm2m_server').read,
 	lwm2m_write = require('./lwm2m_server').write,
@@ -74,15 +73,18 @@ function _obsBtn(i, endpoint){
 		ledEndpoint = btnMap[endpoint][i][0];
 		ledi = btnMap[endpoint][i][1];
 		if(!homeStateNew.reported[ledEndpoint] || !homeStateNew.reported[ledEndpoint][Oid] ||
-			!homeStateNew.reported[ledEndpoint][Oid][ledi]){
+			!homeStateNew.reported[ledEndpoint][Oid][ledi] ||
+			homeStateNew.reported[ledEndpoint][Oid][ledi][Rid] == undefined){
 			console.log("bad map, ignore it.");
 			ledEndpoint = endpoint;
 			ledi = i;
 		}
-		homeStateNew.reported[ledEndpoint][Oid][ledi][Rid] = !homeState.reported[ledEndpoint][Oid][ledi][Rid];
-		homeStateNew.desired[ledEndpoint][Oid][ledi][Rid] = !homeState.reported[ledEndpoint][Oid][ledi][Rid];
-		lwm2m_write(ledEndpoint, Oid, ledi, Rid, homeStateNew.reported[ledEndpoint][Oid][ledi][Rid]);
-		aws_send(homeStateNew, homeState);
+		value = !homeState.reported[ledEndpoint][Oid][ledi][Rid];
+		value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired]);
+		if (value != undefined){
+			lwm2m_write(ledEndpoint, Oid, ledi, Rid, value);
+			aws_send(homeStateNew, homeState);
+		}
 	}
 	return obsBtn;
 }
@@ -92,8 +94,10 @@ function _obsTemp(i, endpoint){
 		console.log('temperature is %s\n', value);
 		var Oid = m2mid.getOid('temperature').value;
 		var Rid = m2mid.getRid('temperature', 'sensorValue').value;
-		homeStateNew.reported[endpoint][Oid][i][Rid] = value;
-		aws_send(homeStateNew, homeState);
+		value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported]);
+		if (value != undefined){
+			aws_send(homeStateNew, homeState);
+		}
 	}
 	return obsTemp;
 }
@@ -102,15 +106,17 @@ function _obsTemp(i, endpoint){
 
 function handleDelta(thingName, stateObject){
 	/*find the change from stateObject and send it to emsk(using lwm2m_write()) and send it to aws iot*/
-	var homeStateDelta = stateObject.state;
+	var homeStateDelta = stateObject.state,
+		value;
 	for(endpoint in homeStateDelta){
 		for(Oid in homeStateDelta[endpoint]){
 			for(i in homeStateDelta[endpoint][Oid]){
 				for(Rid in homeStateDelta[endpoint][Oid][i]){
-					lwm2m_write(endpoint, Oid, i, Rid, homeStateDelta[endpoint][Oid][i][Rid]);
-					homeStateNew.reported[endpoint][Oid][i][Rid] = homeStateDelta[endpoint][Oid][i][Rid];
-					homeStateNew.desired[endpoint][Oid][i][Rid] = homeStateDelta[endpoint][Oid][i][Rid];
-					homeState.desired[endpoint][Oid][i][Rid] = homeStateDelta[endpoint][Oid][i][Rid];
+					value = homeStateDelta[endpoint][Oid][i][Rid];
+					value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired, homeState.desired]);
+					if (value != undefined){
+						lwm2m_write(endpoint, Oid, i, Rid, homeStateNew.reported[endpoint][Oid][i][Rid]);
+					}
 				}
 			}
 		}
@@ -119,7 +125,45 @@ function handleDelta(thingName, stateObject){
 	console.log("get a delta:%s\n", JSON.stringify(stateObject));
 }
 
-
+function stateChange(endpoint, Oid, i, Rid, value, state){
+	var def = m2mid.getRdef(Oid, Rid),
+		key;
+	if (def.access == 'R')
+		return ;
+	switch(def.type){
+		case "boolean":
+			if(value == "true" || value == "1" || value == 1)
+				value = true;
+			else if (value == "false" || value == "0" || value == 0)
+				value = false;
+			else {
+				console.log("get wrong type data");
+				return ;
+			}
+			break;
+		case "float":
+		case "integer":
+			value = Number(value);
+			if (Number.isNaN(value)){
+				console.log("get wrong type data");
+				return ;
+			}
+			break;
+		case "string":
+			value = value.toString();
+			break;
+		case "opaque":
+			
+			break;
+		default:
+			console.log("unknow type");
+			break;
+	}
+	for(key in state){
+		state[key][endpoint][Oid][i][Rid] = value;
+	}
+	return value;
+}
 //command-node
 function listClients(commands) {
 	lwm2m_listClients(resourceShow);
@@ -141,27 +185,23 @@ function listClients(commands) {
 	}
 }
 
-/*TODO: change payload (command[4]) to different data type
-		error check*/
 function write(commands){
-	commands[4] = commands[4][0] - '0';
-	if(globalAWSFlag){
-		var callback;
-		callback = function (err){
-			if (err){
-				console.log(err);
-			} else {
-				console.log("write to lwm2m client success");
-				homeStateNew.reported[commands[0]][commands[1]][commands[2]][commands[3]] = commands[4]? true : false;
-				homeStateNew.desired[commands[0]][commands[1]][commands[2]][commands[3]] = commands[4]? true : false;
-				aws_send(homeStateNew, homeState);
-			}
-		}
-		lwm2m_write(commands[0], commands[1], commands[2], commands[3], commands[4], callback);
+	var endpoint = commands[0],
+		Oid = commands[1],
+		i = commands[2],
+		Rid = commands[3],
+		value = commands[4];
+	if(Oid < 20){
+		lwm2m_write(endpoint, Oid, i, Rid, value);
 	} else {
-		lwm2m_write(commands[0], commands[1], commands[2], commands[3], commands[4]);
+		value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired]);
+		if (value != undefined){
+			lwm2m_write(endpoint, Oid, i, Rid, value);
+			aws_send(homeStateNew, homeState);
+		}
 	}
 }
+
 function upload(commands) {
 	fs.readFile(commands[1], 'utf8', function(err, data){
 		if(err)
@@ -187,12 +227,15 @@ function execute(commands) {
 function read(commands){
 	lwm2m_read(commands[0], commands[1], commands[2], commands[3]);
 }
-function observe(commands){
+function shwoState(commands){
 	console.log(JSON.stringify(homeStateNew));
 	console.log('\n\n');
 	console.log(JSON.stringify(homeState));
 }
 function cancelObservation(commands){
+	
+}
+function observe(commands){
 	
 }
 function reloadMap(commands){
@@ -250,6 +293,11 @@ var commands = {
 		parameters: ['deviceId'],
 		description: 'reboot the client',
 		handler: reboot
+	},
+	'state': {
+		parameters: [],
+		description: 'show current homeStateNew and homeState',
+		handler: shwoState,
 	}
 };
 
