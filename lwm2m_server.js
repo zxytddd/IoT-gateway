@@ -25,7 +25,6 @@ function handleResult(message) {
 }
 
 function registerParser(endpoint, payload, homeStateNew){
-	//TODO: Add the resource to homeStateNew by different object automaticily.
 	var out = {},
 		found = payload.split('>,<'),
 		reported = {}, 
@@ -50,7 +49,7 @@ function registerParser(endpoint, payload, homeStateNew){
 		for(instance in reported[obj]){
 			switch(obj){
 				case "3303":
-					reported[obj][instance][5700] = false;
+					reported[obj][instance][5700] = NaN;
 					delete desired[obj];
 					break;
 				case "3311":

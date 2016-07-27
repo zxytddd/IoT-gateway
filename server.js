@@ -92,8 +92,8 @@ function _obsBtn(i, endpoint){
 function _obsTemp(i, endpoint){
 	function obsTemp(value){
 		console.log('temperature is %s\n', value);
-		var Oid = m2mid.getOid('temperature').value;
-		var Rid = m2mid.getRid('temperature', 'sensorValue').value;
+		var Oid = m2mid.getOid('temperature').value,
+			Rid = m2mid.getRid('temperature', 'sensorValue').value;
 		value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported]);
 		if (value != undefined){
 			aws_send(homeStateNew, homeState);
@@ -128,8 +128,6 @@ function handleDelta(thingName, stateObject){
 function stateChange(endpoint, Oid, i, Rid, value, state){
 	var def = m2mid.getRdef(Oid, Rid),
 		key;
-	if (def.access == 'R')
-		return ;
 	switch(def.type){
 		case "boolean":
 			if(value == "true" || value == "1" || value == 1)
@@ -137,7 +135,7 @@ function stateChange(endpoint, Oid, i, Rid, value, state){
 			else if (value == "false" || value == "0" || value == 0)
 				value = false;
 			else {
-				console.log("get wrong type data");
+				console.log("get wrong type data: not bool");
 				return ;
 			}
 			break;
@@ -145,7 +143,7 @@ function stateChange(endpoint, Oid, i, Rid, value, state){
 		case "integer":
 			value = Number(value);
 			if (Number.isNaN(value)){
-				console.log("get wrong type data");
+				console.log("get wrong type data: not number");
 				return ;
 			}
 			break;
