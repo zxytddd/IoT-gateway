@@ -2,13 +2,14 @@ var config = require('./config').lwm2m,
 	lwm2mServer = require('lwm2m-node-lib').server,
 	m2mid = require('lwm2m-id'),
 	async = require('async'),
+	clUtils = require('command-node'),
 	deepCopy = require('./deepCopy');
 
 function setHandlers(registrationHandler, serverInfo, callback) {
 	lwm2mServer.setHandler(serverInfo, 'registration', registrationHandler);
 	lwm2mServer.setHandler(serverInfo, 'unregistration', function (device, callback) {
 		console.log('\nDevice unregistration:\n----------------------------\n');
-		console.log('Device location: %s', device);
+		console.log('Device location: %s', device.name);
 		callback();
 	});
 	callback();
@@ -17,10 +18,11 @@ function setHandlers(registrationHandler, serverInfo, callback) {
 function handleResult(message) {
 	return function(error) {
 		if (error) {
-			console.log('err: '+ JSON.stringify(error));
+			console.log('\nLwm2m: ERROR  \t%s', JSON.stringify(error, null, 4));
 		} else {
-			console.log('\nSuccess: %s\n', message);
+			console.log('\nLwm2m: SUCCESS\t%s', message);
 		}
+		clUtils.prompt();
 	};
 }
 
@@ -73,7 +75,7 @@ function start(registrationHandler) {
 	async.waterfall([
 		async.apply(lwm2mServer.start, config),
 		async.apply(setHandlers, registrationHandler),
-	], handleResult('Lightweight M2M Server started'));
+	], handleResult('Server started'));
 }
 
 function write(endpoint, Oid, i, Rid, value, callback) {
@@ -103,11 +105,11 @@ function write(endpoint, Oid, i, Rid, value, callback) {
 			if(callback){
 				cb = callback;
 			} else {
-				cb = handleResult('write to lwm2m client success');
+				cb = handleResult('Write to client');
 			}
 			lwm2mServer.write(device.id, Oid, i, Rid, payload, cb);
 		} else {
-			console.log("wrong data type");
+			handleResult()("Write to client: Wrong data type");
 		}
 	});
 }
@@ -121,11 +123,9 @@ function read(endpoint, Oid, i, Rid, callback) {
 			cb = callback;
 		} else {
 			cb = function (err, res){
-					if(err)
-						console.log("read err: %s", JSON.stringify(err));
-					else
-						console.log(res);
-				};
+				console.log(err);
+				handleResult(endpoint+":"+Oid+"/"+i+"/"+Rid+"\t"+res)(err);
+			};
 		}
 		lwm2mServer.read(device.id, Oid, i, Rid, cb);
 });
@@ -139,7 +139,7 @@ function execute(endpoint, Oid, i, Rid, callback) {
 		if (callback){
 			cb = callback;
 		} else {
-			cb = handleResult('Command executed successfully');
+			cb = handleResult('Command executed');
 		}
 		lwm2mServer.execute(device.id, Oid, i, Rid, null, cb);
 	});
@@ -168,6 +168,7 @@ function listClients(resourceShow) {
 			}
 
 		}
+		clUtils.prompt();
 	});
 }
 

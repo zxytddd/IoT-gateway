@@ -22,16 +22,18 @@ function registrationHandler(endpoint, lifetime, version, binding, payload, call
 	setTimeout(function (){
 		switch(endpoint.slice(0, 6)){
 			case "embARC":
-				console.log("%s connected", endpoint);	
+				console.log("\nLwm2m: SUCCESS\tA new client connected: %s", endpoint);	
 				embarcFunction(endpoint, payload);
 				break;
 			case "other":
 				break;
 			default:
-				console.log("unknow client name: %s\n", endpoint);
+				console.log("\nLwm2m: ERROR  \tUnknow client name: %s", endpoint);
 				break;
 		}
+		clUtils.prompt();
 	}, 1000);
+	
 	callback();
 }
 
@@ -42,12 +44,13 @@ function embarcFunction(endpoint, payload) {
 	/*parser the reg payload*/
 	lwm2m_registerParser(endpoint, payload, homeStateNew);
 	/*observe some resource 
-	TODO: read the start data*/
+	TODO: read the orgin data*/
+	resourceShow(endpoint);
 	Oid = m2mid.getOid('temperature').value;
 	Rid = m2mid.getRid(Oid, 'sensorValue').value;
 	if(homeStateNew.reported[endpoint][Oid]){
 		lwm2m_observe(endpoint, Oid, 0, Rid, _obsTemp(0, endpoint), function (){
-			console.log('observe temerature');
+			// console.log('observe temerature');
 		});	
 	}
 	Oid = m2mid.getOid('pushButton').value;
@@ -55,7 +58,7 @@ function embarcFunction(endpoint, payload) {
 	if(homeStateNew.reported[endpoint][Oid]){
 		for (i in homeStateNew.reported[endpoint][Oid]){
 			lwm2m_observe(endpoint, Oid, i, Rid, _obsBtn(i, endpoint), function (){
-				console.log('observe button');
+				// console.log('observe button');
 			});
 		}
 	}
@@ -63,8 +66,9 @@ function embarcFunction(endpoint, payload) {
 }
 
 function _obsBtn(i, endpoint){
+	/*TODO: control the different object rather than light.*/
 	function obsBtn(value){
-		console.log("button put %d\n", i);
+		console.log("\n%s: button %d", endpoint, i);
 		var Oid = m2mid.getOid('lightCtrl').value;
 		var Rid = m2mid.getRid('lightCtrl', 'onOff').value;
 		var ledEndpoint, ledi;
@@ -75,7 +79,7 @@ function _obsBtn(i, endpoint){
 		if(!homeStateNew.reported[ledEndpoint] || !homeStateNew.reported[ledEndpoint][Oid] ||
 			!homeStateNew.reported[ledEndpoint][Oid][ledi] ||
 			homeStateNew.reported[ledEndpoint][Oid][ledi][Rid] == undefined){
-			console.log("bad map, ignore it.");
+			console.log("bad map, use the default map.");
 			ledEndpoint = endpoint;
 			ledi = i;
 		}
@@ -85,19 +89,21 @@ function _obsBtn(i, endpoint){
 			lwm2m_write(ledEndpoint, Oid, ledi, Rid, value);
 			aws_send(homeStateNew, homeState);
 		}
+		// clUtils.prompt();
 	}
 	return obsBtn;
 }
 
 function _obsTemp(i, endpoint){
 	function obsTemp(value){
-		console.log('temperature is %s\n', value);
+		console.log('\n%s: temperature%d %s', endpoint, i, value);
 		var Oid = m2mid.getOid('temperature').value,
 			Rid = m2mid.getRid('temperature', 'sensorValue').value;
 		value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported]);
 		if (value != undefined){
 			aws_send(homeStateNew, homeState);
 		}
+		// clUtils.prompt();
 	}
 	return obsTemp;
 }
@@ -122,7 +128,8 @@ function handleDelta(thingName, stateObject){
 		}
 	}
 	aws_send(homeStateNew, homeState);
-	console.log("get a delta:%s\n", JSON.stringify(stateObject));
+	console.log("\nget a delta:%s\n", JSON.stringify(stateObject, null, 4));
+	clUtils.prompt();
 }
 
 function stateChange(endpoint, Oid, i, Rid, value, state){
@@ -165,21 +172,21 @@ function stateChange(endpoint, Oid, i, Rid, value, state){
 //command-node
 function listClients(commands) {
 	lwm2m_listClients(resourceShow);
-	function resourceShow(endpoint){
-		if(!homeStateNew.reported[endpoint]){
-			return;
-		}
-		var show = homeStateNew.reported[endpoint];
-		for(obj in show){
-			console.log('%s: ', m2mid.getOid(obj).key);
-			for(instance in show[obj]){
-				console.log('\t%d:', instance);
-				for(resource in show[obj][instance]){
-					console.log('\t\t%s:\t\t%s', m2mid.getRid(obj, resource).key, show[obj][instance][resource].toString());
-				}
+}
+
+function resourceShow(endpoint){
+	if(!homeStateNew.reported[endpoint]){
+		return;
+	}
+	var show = homeStateNew.reported[endpoint];
+	for(obj in show){
+		console.log('%s: ', m2mid.getOid(obj).key);
+		for(instance in show[obj]){
+			console.log('\t%d:', instance);
+			for(resource in show[obj][instance]){
+				console.log('\t\t%s:\t\t%s', m2mid.getRid(obj, resource).key, show[obj][instance][resource].toString());
 			}
 		}
-
 	}
 }
 
@@ -203,17 +210,18 @@ function write(commands){
 function upload(commands) {
 	fs.readFile(commands[1], 'utf8', function(err, data){
 		if(err)
-			console.log(err);
+			console.log('\nLwm2m: ERROR  \tRead firmware filed\n%s', JSON.stringify(error, null, 4));
 		else{
-			function callback(err){
-				if(err)
-					console.log("upload err: %s", JSON.stringify(err));
-				else{
-					console.log("firmware upload successful");
-					execute([commands[0], 5, 0, 2]);
+			lwm2m_write(commands[0], 5, 0, 0, data, function callback(err){
+				if(err){
+					console.log('\nLwm2m: ERROR  \t%s', JSON.stringify(error, null, 4));
+					clUtils.prompt();
 				}
-			}
-			lwm2m_write(commands[0], 5, 0, 0, data, callback);
+				else{
+					console.log("\nLwm2m: SUCCESS\tFirmware upload successful");
+					lwm2m_execute(commands[0], 5, 0, 2);
+				}
+			});
 		}
 	})
 }
@@ -225,10 +233,11 @@ function execute(commands) {
 function read(commands){
 	lwm2m_read(commands[0], commands[1], commands[2], commands[3]);
 }
-function shwoState(commands){
-	console.log(JSON.stringify(homeStateNew));
+function showState(commands){
+	console.log("\n"+JSON.stringify(homeStateNew));
 	console.log('\n\n');
 	console.log(JSON.stringify(homeState));
+	clUtils.prompt();
 }
 function cancelObservation(commands){
 	
@@ -242,60 +251,61 @@ function reloadMap(commands){
 }
 function reboot(commands){
 	lwm2m_execute(commands[0], 3, 0, 4);
+	clUtils.prompt();
 }
 var commands = {
 	'list': {
 		parameters: [],
-		description: '\tList all the devices connected to the server.',
+		description: 'List all the devices connected to the server.',
 		handler: listClients
 	},
 	'write': {
 		parameters: ['clientName', 'objTypeId', 'objInstanceId', 'resourceId', 'resourceValue'],
-		description: '\tWrites the given value to the resource indicated by the URI (in LWTM2M format) in the given' +
+		description: 'Writes the given value to the resource indicated by the URI (in LWTM2M format) in the given' +
 			'device.',
 		handler: write
 	},
 	'upload': {
 		parameters: ['clientName', 'filePath'],
-		description: '\tUploads the file from given filePath to' +
+		description: 'Uploads the file from given filePath to' +
 			'device.',
 		handler: upload		
 	},
 	'execute': {
 		parameters: ['clientName', 'objTypeId', 'objInstanceId', 'resourceId'],
-		description: '\tExecutes the selected resource with the given arguments.',
+		description: 'Executes the selected resource with the given arguments.',
 		handler: execute
 	},
 	'read': {
 		parameters: ['clientName', 'objTypeId', 'objInstanceId', 'resourceId'],
-		description: '\tReads the value of the resource indicated by the URI (in LWTM2M format) in the given device.',
+		description: 'Reads the value of the resource indicated by the URI (in LWTM2M format) in the given device.',
 		handler: read
 	},
 	'observe': {
 		parameters: ['deviceId', 'objTypeId', 'objInstanceId', 'resourceId'],
-		description: '\tStablish an observation over the selected resource.',
+		description: 'Stablish an observation over the selected resource.',
 		handler: observe
 	},
 	'cancel': {
 		parameters: ['deviceId', 'objTypeId', 'objInstanceId', 'resourceId'],
-		description: '\tCancel the observation order for the given resource (defined with a LWTM2M URI) ' +
+		description: 'Cancel the observation order for the given resource (defined with a LWTM2M URI) ' +
 			'to the given device.',
 		handler: cancelObservation
 	},
 	'map': {
 		parameters: [],
-		description: 'show the map file',
+		description: 'Show the map file',
 		handler: reloadMap
 	},
 	'reboot': {
 		parameters: ['deviceId'],
-		description: 'reboot the client',
+		description: 'Reboot the client',
 		handler: reboot
 	},
 	'state': {
 		parameters: [],
-		description: 'show current homeStateNew and homeState',
-		handler: shwoState,
+		description: 'Show current homeStateNew and homeState',
+		handler: showState,
 	}
 };
 

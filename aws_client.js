@@ -1,5 +1,6 @@
 
 var thingShadow = require('aws-iot-device-sdk').thingShadow,
+	clUtils = require('command-node'),
 	deepCopy = require('./deepCopy'),
 	config = require('./config').aws,
 	thingShadows,
@@ -9,25 +10,39 @@ var thingShadow = require('aws-iot-device-sdk').thingShadow,
 	globalAWSFlag = false,
 	stack = [];
 
+function handleResult(message, error) {
+	if (error == 0) {
+		console.log('\nAWS  : SUCCESS\t%s', message);
+	} else if(error == 1) {
+		console.log('\nAWS  : ERROR  \t%s', message);
+	} else if(error == undefined){
+		console.log('\nAWS  :        \t%s', message);
+	}
+	clUtils.prompt();
+}
+
 function start(handleDelta, callback){
 	thingShadows = thingShadow(config);
 	aws_deviceConnect();
 	thingShadows.on('connect', function() {
-		console.log('connected to AWS IoT');
 		// genericOperation('update', {state:{reported:null,desired:null}});
 		globalAWSFlag = true;
-		// callback();
+		if(callback)
+			callback();
+		else
+			handleResult('connected', 0);
 	});
 
 	thingShadows.on('close', function() {
-		console.log('close');
 		globalAWSFlag = false;
 		thingShadows.unregister(thingName);
+		handleResult('close');
 	});
 
 	thingShadows.on('reconnect', function() {
-		console.log('reconnect');
+		handleResult('reconnecting');
 	});
+
 	thingShadows.on('offline', function() {
 
 		if (currentTimeout !== null) {
@@ -38,15 +53,21 @@ function start(handleDelta, callback){
 		while (stack.length) {
 			stack.pop();
 		}
-		console.log('offline');
+		handleResult('offline');
 	});
 
 	thingShadows.on('status', function(thingName, stat, clientToken, stateObject) {
-		handleStatus(thingName, stat, clientToken, stateObject);
+		var expectedClientToken = stack.pop();
+		handleResult('get status', 0);
 	});
 
 	thingShadows.on('timeout', function(thingName, clientToken) {
-		handleTimeout(thingName, clientToken);
+		var expectedClientToken = stack.pop();
+		if (expectedClientToken === clientToken) {
+			handleResult('timeout', 1);
+		} else {
+			handleResult('client token mismtach', 1);
+		}
 	});
 
 	thingShadows.on('delta', handleDelta);
@@ -111,23 +132,6 @@ function genericOperation(operation, state) {
 	 // Save the client token so that we know when the operation completes.
 	 //
 		stack.push(clientToken);
-	}
-}
-
-
-function handleStatus(thingName, stat, clientToken, stateObject) {
-	var expectedClientToken = stack.pop();
-	console.log("get status");
-
-}
-
-function handleTimeout(thingName, clientToken) {
-	var expectedClientToken = stack.pop();
-
-	if (expectedClientToken === clientToken) {
-		console.log('timeout on: ' + thingName);
-	} else {
-		console.log('(timeout) client token mismtach on: ' + thingName);
 	}
 }
 
