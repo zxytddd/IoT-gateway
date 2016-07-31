@@ -240,10 +240,10 @@ function showState(commands){
 	clUtils.prompt();
 }
 function cancelObservation(commands){
-	
+	console.log("in cancel");
 }
 function observe(commands){
-	
+	// clUtils.executeCommander(['cancel', 1, 1, 1, 1]);
 }
 function reloadMap(commands){
 	btnMap = JSON.parse(fs.readFileSync('./btnMap.json')),
@@ -311,5 +311,5 @@ var commands = {
 
 //main
 lwm2m_start(registrationHandler);
-aws_start(handleDelta);
+// aws_start(handleDelta);
 clUtils.initialize(commands, 'LWM2M-Server> ');
