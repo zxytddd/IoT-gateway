@@ -1,12 +1,6 @@
-var config = require('lwm2m-node-lib/config'),
-	m2mid = require('lwm2m-id'),
-	async = require('async'),
+var m2mid = require('lwm2m-id'),
 	fs = require('fs'),
-	clUtils = require('command-node'),
-	homeStateNew = require('./homeState').stateNew,
-	homeState = require('./homeState').state,
-	deepCopy = require('./deepCopy'),
-	btnMap = JSON.parse(fs.readFileSync('./btnMap.json'));
+	clUtils = require('command-node');
 
 var lwm2m_read = require('./lwm2m_server').read,
 	lwm2m_write = require('./lwm2m_server').write,
@@ -16,7 +10,11 @@ var lwm2m_read = require('./lwm2m_server').read,
 	lwm2m_registerParser = require('./lwm2m_server').registerParser,
 	lwm2m_listClients = require('./lwm2m_server').listClients,
 	aws_start = require('./aws_client').start,
-	aws_send = require('./aws_client').send;
+	aws_send = require('./aws_client').send,
+	homeStateNew = require('./homeState').stateNew,
+	homeState = require('./homeState').state,
+	deepCopy = require('./deepCopy'),
+	btnMap = JSON.parse(fs.readFileSync('./btnMap.json'));
 
 function registrationHandler(endpoint, lifetime, version, binding, payload, callback) {
 	setTimeout(function (){
