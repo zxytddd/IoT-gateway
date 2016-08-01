@@ -36,11 +36,13 @@ function registrationHandler(endpoint, lifetime, version, binding, payload, call
 }
 
 function embarcFunction(endpoint, payload) {
-	var i,
-		Oid,
+	var Oid,
+		i,
 		Rid;
 	/*parser the reg payload*/
 	lwm2m_registerParser(endpoint, payload, homeStateNew);
+	/*TODO: generate the map file*/
+
 	/*observe some resource 
 	TODO: read the orgin data*/
 	resourceShow(endpoint);
@@ -69,7 +71,7 @@ function observeHandle(endpoint, Oid, i, Rid){
 		if(!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
 			!controlMap[endpoint][Oid][i] ||
 			controlMap[endpoint][Oid][i][Rid] == undefined){
-			stateControl([endpoint, Oid, i ,Rid], value)
+			stateControl([endpoint, Oid, i ,Rid], value);
 		} else {
 			stateControl(controlMap[endpoint][Oid][i][Rid], value);
 		}
@@ -77,12 +79,9 @@ function observeHandle(endpoint, Oid, i, Rid){
 	return obs;
 	function stateControl(resource, value){
 		var key;
-		if(typeof(resource[0]) == "object"){
-			console.log("\n\n\n~~~~~~~~~~~~~~~~obj\n" + resource);
-		} else {
+		if(typeof(resource[0]) != "object"){
 			resource = [resource];
-			console.log("\n\n\n~~~~~~~~~~~~~~~~no obj");
-		}
+		} 
 		for (key in resource){
 			var endpoint = resource[key][0],
 				Oid = resource[key][1],
