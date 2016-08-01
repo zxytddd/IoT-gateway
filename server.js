@@ -14,7 +14,7 @@ var lwm2m_read = require('./lwm2m_server').read,
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
 	deepCopy = require('./deepCopy'),
-	btnMap = JSON.parse(fs.readFileSync('./btnMap.json'));
+	controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
 
 function registrationHandler(endpoint, lifetime, version, binding, payload, callback) {
 	setTimeout(function (){
@@ -47,63 +47,72 @@ function embarcFunction(endpoint, payload) {
 	Oid = m2mid.getOid('temperature').value;
 	Rid = m2mid.getRid(Oid, 'sensorValue').value;
 	if(homeStateNew.reported[endpoint][Oid]){
-		lwm2m_observe(endpoint, Oid, 0, Rid, _obsTemp(0, endpoint), function (){
-			// console.log('observe temerature');
-		});	
+		for (i in homeStateNew.reported[endpoint][Oid]){
+			lwm2m_observe(endpoint, Oid, i, Rid, observeHandle(endpoint, Oid, i ,Rid), function (){
+			});
+		}
 	}
 	Oid = m2mid.getOid('pushButton').value;
 	Rid = m2mid.getRid(Oid, 'dInState').value;
 	if(homeStateNew.reported[endpoint][Oid]){
 		for (i in homeStateNew.reported[endpoint][Oid]){
-			lwm2m_observe(endpoint, Oid, i, Rid, _obsBtn(i, endpoint), function (){
-				// console.log('observe button');
+			lwm2m_observe(endpoint, Oid, i, Rid, observeHandle(endpoint, Oid, i ,Rid), function (){
 			});
 		}
 	}
 	aws_send(homeStateNew, homeState);
 }
 
-function _obsBtn(i, endpoint){
-	/*TODO: control the different object rather than light.*/
-	function obsBtn(value){
-		console.log("\n%s: button %d", endpoint, i);
-		var Oid = m2mid.getOid('lightCtrl').value;
-		var Rid = m2mid.getRid('lightCtrl', 'onOff').value;
-		var ledEndpoint, ledi;
-
-		btnMap = JSON.parse(fs.readFileSync('./btnMap.json'));
-		ledEndpoint = btnMap[endpoint][i][0];
-		ledi = btnMap[endpoint][i][1];
-		if(!homeStateNew.reported[ledEndpoint] || !homeStateNew.reported[ledEndpoint][Oid] ||
-			!homeStateNew.reported[ledEndpoint][Oid][ledi] ||
-			homeStateNew.reported[ledEndpoint][Oid][ledi][Rid] == undefined){
-			console.log("bad map, use the default map.");
-			ledEndpoint = endpoint;
-			ledi = i;
+function observeHandle(endpoint, Oid, i, Rid){
+	function obs(value){
+		controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
+		if(!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
+			!controlMap[endpoint][Oid][i] ||
+			controlMap[endpoint][Oid][i][Rid] == undefined){
+			stateControl([endpoint, Oid, i ,Rid], value)
+		} else {
+			stateControl(controlMap[endpoint][Oid][i][Rid], value);
 		}
-		value = !homeState.reported[ledEndpoint][Oid][ledi][Rid];
-		value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired]);
-		if (value != undefined){
-			lwm2m_write(ledEndpoint, Oid, ledi, Rid, value);
-			aws_send(homeStateNew, homeState);
-		}
-		// clUtils.prompt();
 	}
-	return obsBtn;
-}
-
-function _obsTemp(i, endpoint){
-	function obsTemp(value){
-		console.log('\n%s: temperature%d %s', endpoint, i, value);
-		var Oid = m2mid.getOid('temperature').value,
-			Rid = m2mid.getRid('temperature', 'sensorValue').value;
-		value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported]);
-		if (value != undefined){
-			aws_send(homeStateNew, homeState);
+	return obs;
+	function stateControl(resource, value){
+		var key;
+		if(typeof(resource[0]) == "object"){
+			console.log("\n\n\n~~~~~~~~~~~~~~~~obj\n" + resource);
+		} else {
+			resource = [resource];
+			console.log("\n\n\n~~~~~~~~~~~~~~~~no obj");
 		}
-		// clUtils.prompt();
+		for (key in resource){
+			var endpoint = resource[key][0],
+				Oid = resource[key][1],
+				i = resource[key][2],
+				Rid = resource[key][3];
+			switch(Oid){
+				case m2mid.getOid('lightCtrl').value:
+					console.log("\n%s: light %d %s", endpoint, i, value ? "on" : "off");
+					value = stateChange(endpoint, Oid, i, Rid, "~", [homeStateNew.reported, homeStateNew.desired]);
+					if (value != undefined){
+						lwm2m_write(endpoint, Oid, i, Rid, value);
+					}
+					break;
+				case m2mid.getOid('temperature').value:
+					console.log('\n%s: temperature %d: %s', endpoint, i, value);
+					value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported]);
+					if (value != undefined){
+
+					}
+					break;
+				case m2mid.getOid('pushButton').value:
+					console.log("\npushButton can not been controlled");
+					break;
+				default:
+					break;
+			}
+		}
+		aws_send(homeStateNew, homeState);
+
 	}
-	return obsTemp;
 }
 //aws function
 
@@ -133,11 +142,23 @@ function handleDelta(thingName, stateObject){
 function stateChange(endpoint, Oid, i, Rid, value, state){
 	var def = m2mid.getRdef(Oid, Rid),
 		key;
+	for(key in state){
+		if(!state[key][endpoint] || !state[key][endpoint][Oid] ||
+			!state[key][endpoint][Oid][i] ||
+			state[key][endpoint][Oid][i][Rid] == undefined){
+			console.log("\nMap  : ERROR  \t%s %s %d %s is not in homeState", endpoint, m2mid.getOid(Oid).key, i, m2mid.getRid(Oid, Rid).key);
+			// console.log("\nMap  : ERROR  \t%s has not connected", endpoint);
+			clUtils.prompt();
+			return;
+		}
+	}
 	switch(def.type){
 		case "boolean":
-			if(value == "true" || value == "1" || value == 1)
+			if(value == "~"){
+				value = !state[0][endpoint][Oid][i][Rid];
+			} else if(value == "true" || value == "1" || value == 1)
 				value = true;
-			else if (value == "false" || value == "0" || value == 0)
+			else if(value == "false" || value == "0" || value == 0)
 				value = false;
 			else {
 				console.log("get wrong type data: not bool");
@@ -243,9 +264,9 @@ function cancelObservation(commands){
 function observe(commands){
 	// clUtils.executeCommander(['cancel', 1, 1, 1, 1]);
 }
-function reloadMap(commands){
-	btnMap = JSON.parse(fs.readFileSync('./btnMap.json')),
-	console.log(JSON.stringify(btnMap, null, 4));
+function showMap(commands){
+	controlMap = JSON.parse(fs.readFileSync('./controlMap.json')),
+	console.log(JSON.stringify(controlMap, null, 4));
 }
 function reboot(commands){
 	lwm2m_execute(commands[0], 3, 0, 4);
@@ -293,7 +314,7 @@ var commands = {
 	'map': {
 		parameters: [],
 		description: 'Show the map file',
-		handler: reloadMap
+		handler: showMap
 	},
 	'reboot': {
 		parameters: ['deviceId'],
