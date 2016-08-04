@@ -11,6 +11,8 @@ var lwm2m_read = require('./lwm2m_server').read,
 	lwm2m_listClients = require('./lwm2m_server').listClients,
 	aws_start = require('./aws_client').start,
 	aws_send = require('./aws_client').send,
+	ws_start = require('./ws_client').start,
+	ws_send = require('./ws_client').send,
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
 	deepCopy = require('./deepCopy'),
@@ -63,6 +65,7 @@ function embarcFunction(endpoint, payload) {
 		}
 	}
 	aws_send(homeStateNew, homeState);
+	ws_send(homeStateNew);
 }
 
 function observeHandle(endpoint, Oid, i, Rid){
@@ -110,6 +113,7 @@ function observeHandle(endpoint, Oid, i, Rid){
 			}
 		}
 		aws_send(homeStateNew, homeState);
+		ws_send(homeStateNew);
 
 	}
 }
@@ -134,6 +138,7 @@ function handleDelta(thingName, stateObject){
 		}
 	}
 	aws_send(homeStateNew, homeState);
+	ws_send(homeStateNew);
 	console.log("\nget a delta:%s\n", JSON.stringify(stateObject, null, 4));
 	clUtils.prompt();
 }
@@ -155,9 +160,9 @@ function stateChange(endpoint, Oid, i, Rid, value, state){
 		case "boolean":
 			if(value == "~"){
 				value = !state[0][endpoint][Oid][i][Rid];
-			} else if(value == "true" || value == "1" || value == 1)
+			} else if(value == "true" || value == "1" || value == 1 || value == true)
 				value = true;
-			else if(value == "false" || value == "0" || value == 0)
+			else if(value == "false" || value == "0" || value == 0 || value == false)
 				value = false;
 			else {
 				console.log("get wrong type data: not bool");
@@ -187,6 +192,49 @@ function stateChange(endpoint, Oid, i, Rid, value, state){
 	}
 	return value;
 }
+//websocket
+
+function handleWSMessage(message) {
+	if (message.type === 'utf8') {
+		var msg = message.utf8Data;
+		console.log('Received Message: ' + msg);
+		if(msg == "{}"){
+			ws_send(homeStateNew);
+		} else {
+			var stateNew = JSON.parse(msg);
+			handleWSReported(stateNew);
+		}
+	} else {
+		console.log("unknow message type");
+	}
+}
+
+function handleWSReported(stateNew){
+	var key, endpoint, Oid, i ,Rid, value;
+	for(key in stateNew){
+		if(key == "desired"){
+			for(endpoint in stateNew[key]){
+				for(Oid in stateNew[key][endpoint]){
+					for(i in stateNew[key][endpoint][Oid]){
+						for(Rid in stateNew[key][endpoint][Oid][i]){
+							value = stateNew[key][endpoint][Oid][i][Rid];
+							value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired]);
+							if(value != undefined){
+								lwm2m_write(endpoint, Oid, i, Rid, value);
+							}
+						}
+					}
+				}
+			}
+		}else{
+			console.log("Can't recieved reported");
+		}
+	}
+	aws_send(homeStateNew, homeState);
+	ws_send(homeStateNew);
+
+}
+
 //command-node
 function listClients(commands) {
 	lwm2m_listClients(resourceShow);
@@ -221,6 +269,7 @@ function write(commands){
 		if (value != undefined){
 			lwm2m_write(endpoint, Oid, i, Rid, value);
 			aws_send(homeStateNew, homeState);
+			ws_send(homeStateNew);
 		}
 	}
 }
@@ -329,5 +378,6 @@ var commands = {
 
 //main
 lwm2m_start(registrationHandler);
+ws_start(handleWSMessage);
 // aws_start(handleDelta);
 clUtils.initialize(commands, 'LWM2M-Server> ');
