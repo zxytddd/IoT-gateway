@@ -1,6 +1,5 @@
 
 var thingShadow = require('aws-iot-device-sdk').thingShadow,
-	clUtils = require('command-node'),
 	config = require('./config').aws,
 	thingShadows,
 	operationTimeout = 10000,
@@ -17,7 +16,6 @@ function handleResult(message, error) {
 	} else if(error == undefined){
 		console.log('\nAWS  :        \t%s', message);
 	}
-	clUtils.prompt();
 }
 
 function start(handleDelta, callback){

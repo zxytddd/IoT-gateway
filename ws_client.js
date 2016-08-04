@@ -31,8 +31,11 @@ function start(handleMessage){
 }
 
 function send(state){
-	if(connection)
+	if(connection){
 		connection.sendUTF(JSON.stringify(state));
+	} else {
+		console.log("webSocket off line");
+	}
 }
 
 module.exports.start = start;

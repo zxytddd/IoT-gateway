@@ -2,7 +2,6 @@ var config = require('./config').lwm2m,
 	lwm2mServer = require('lwm2m-node-lib').server,
 	m2mid = require('lwm2m-id'),
 	async = require('async'),
-	clUtils = require('command-node'),
 	deepCopy = require('./utils').deepCopy;
 
 function setHandlers(registrationHandler, serverInfo, callback) {
@@ -22,7 +21,6 @@ function handleResult(message) {
 		} else {
 			console.log('\nLwm2m: SUCCESS\t%s', message);
 		}
-		clUtils.prompt();
 	};
 }
 
@@ -157,7 +155,7 @@ function observe(endpoint, Oid, i, Rid, handle, callback){
 function listClients(resourceShow) {
 	lwm2mServer.listDevices(function (error, deviceList) {
 		if (error) {
-			clUtils.handleError(error);
+			handleResult()(error);
 		} else {
 			console.log('\nDevice list:\n----------------------------\n');
 
@@ -168,7 +166,6 @@ function listClients(resourceShow) {
 			}
 
 		}
-		clUtils.prompt();
 	});
 }
 
