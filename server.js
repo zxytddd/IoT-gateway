@@ -50,71 +50,33 @@ function embarcFunction(endpoint, payload) {
 	resourceShow(endpoint);
 	Oid = m2mid.getOid('temperature').value;
 	Rid = m2mid.getRid(Oid, 'sensorValue').value;
-	if(homeStateNew.reported[endpoint][Oid]){
-		for (i in homeStateNew.reported[endpoint][Oid]){
-				lwm2m_observe(endpoint, Oid, i, Rid, observeHandle(endpoint, Oid, i ,Rid), function (){
+	if(homeStateNew[endpoint][Oid]){
+		for (i in homeStateNew[endpoint][Oid]){
+				lwm2m_observe(endpoint, Oid, i, Rid, handleObserve(endpoint, Oid, i ,Rid), function (){
 			});
 		}
 	}
 	Oid = m2mid.getOid('pushButton').value;
 	Rid = m2mid.getRid(Oid, 'dInState').value;
-	if(homeStateNew.reported[endpoint][Oid]){
-		for (i in homeStateNew.reported[endpoint][Oid]){
-				lwm2m_observe(endpoint, Oid, i, Rid, observeHandle(endpoint, Oid, i ,Rid), function (){
+	if(homeStateNew[endpoint][Oid]){
+		for (i in homeStateNew[endpoint][Oid]){
+				lwm2m_observe(endpoint, Oid, i, Rid, handleObserve(endpoint, Oid, i ,Rid), function (){
 			});
 		}
 	}
 	updateUI();
 }
 
-function observeHandle(endpoint, Oid, i, Rid){
+function handleObserve(endpoint, Oid, i, Rid){
 	function obs(value){
-		controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
-		if(!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
-			!controlMap[endpoint][Oid][i] ||
-			controlMap[endpoint][Oid][i][Rid] == undefined){
-			stateControl([endpoint, Oid, i ,Rid], value);
-		} else {
-			stateControl(controlMap[endpoint][Oid][i][Rid], value);
-		}
+		if(Oid == m2mid.getOid("pushButton") && Rid == m2mid.getRid("pushButton", "dInState"))
+			value = "~";
+		stateChange(endpoint, Oid, i, Rid, value);
 	}
 	return obs;
-	function stateControl(resource, value){
-		var key;
-		if(typeof(resource[0]) != "object"){
-			resource = [resource];
-		} 
-		for (key in resource){
-			var endpoint = resource[key][0],
-				Oid = resource[key][1],
-				i = resource[key][2],
-				Rid = resource[key][3];
-			switch(Oid){
-				case m2mid.getOid('lightCtrl').value:
-					console.log("\n%s: light %d %s", endpoint, i, value ? "on" : "off");
-					value = stateChange(endpoint, Oid, i, Rid, "~", [homeStateNew.reported, homeStateNew.desired]);
-					if (value != undefined){
-						lwm2m_write(endpoint, Oid, i, Rid, value);
-					}
-					break;
-				case m2mid.getOid('temperature').value:
-					console.log('\n%s: temperature %d: %s', endpoint, i, value);
-					value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported]);
-					if (value != undefined){
-
-					}
-					break;
-				case m2mid.getOid('pushButton').value:
-					console.log("\npushButton can not been controlled");
-					break;
-				default:
-					break;
-			}
-		}
-	}
 }
-//aws function
 
+//aws function
 
 function handleDelta(thingName, stateObject){
 	/*find the change from stateObject and send it to emsk(using lwm2m_write()) and send it to aws iot*/
@@ -125,10 +87,7 @@ function handleDelta(thingName, stateObject){
 			for(i in homeStateDelta[endpoint][Oid]){
 				for(Rid in homeStateDelta[endpoint][Oid][i]){
 					value = homeStateDelta[endpoint][Oid][i][Rid];
-					value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired]);
-					if (value != undefined){
-						lwm2m_write(endpoint, Oid, i, Rid, homeStateNew.reported[endpoint][Oid][i][Rid]);
-					}
+					stateChange(endpoint, Oid, i, Rid, value);
 				}
 			}
 		}
@@ -137,55 +96,79 @@ function handleDelta(thingName, stateObject){
 	clUtils.prompt();
 }
 
-function stateChange(endpoint, Oid, i, Rid, value, state){
-	var def = m2mid.getRdef(Oid, Rid),
-		key;
-	for(key in state){
-		if(!state[key][endpoint] || !state[key][endpoint][Oid] ||
-			!state[key][endpoint][Oid][i] ||
-			state[key][endpoint][Oid][i][Rid] == undefined){
-			console.log("\nMap  : ERROR  \t%s %s %d %s is not in homeState", endpoint, m2mid.getOid(Oid).key, i, m2mid.getRid(Oid, Rid).key);
-			// console.log("\nMap  : ERROR  \t%s has not connected", endpoint);
-			clUtils.prompt();
+function stateChange(endpoint, Oid, i, Rid, value){
+	var key,
+		mapTarget,
+		newValue;
+	//check map
+	controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
+	if(!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
+		!controlMap[endpoint][Oid][i] ||
+		controlMap[endpoint][Oid][i][Rid] == undefined){
+		//no map
+		newValue = dataTypeCheck(Oid, Rid, value);
+		if(newValue == undefined){
 			return;
 		}
-	}
-	switch(def.type){
-		case "boolean":
-			if(value == "~"){
-				value = !state[0][endpoint][Oid][i][Rid];
-			} else if(value == "true" || value == "1" || value == 1 || value == true)
-				value = true;
-			else if(value == "false" || value == "0" || value == 0 || value == false)
-				value = false;
-			else {
-				console.log("get wrong type data: not bool");
-				return ;
+		homeStateNew[endpoint][Oid][i][Rid] = newValue;
+		lwm2m_write(endpoint, Oid, i, Rid, newValue);
+
+	} else {
+		mapTarget = controlMap[endpoint][Oid][i][Rid];
+		if(typeof(mapTarget[0]) != "object"){
+			mapTarget = [mapTarget];
+		} 
+		if (mapTarget[0])
+		for(key in mapTarget){
+			endpoint = mapTarget[key][0];
+			Oid = mapTarget[key][1];
+			i = mapTarget[key][2];
+			Rid = mapTarget[key][3];
+			newValue = dataTypeCheck(Oid, Rid, value);
+			if(newValue == undefined){
+				continue;
 			}
-			break;
-		case "float":
-		case "integer":
-			value = Number(value);
-			if (Number.isNaN(value)){
-				console.log("get wrong type data: not number");
-				return ;
-			}
-			break;
-		case "string":
-			value = value.toString();
-			break;
-		case "opaque":
-			
-			break;
-		default:
-			console.log("unknow type");
-			break;
-	}
-	for(key in state){
-		state[key][endpoint][Oid][i][Rid] = value;
+			homeStateNew[endpoint][Oid][i][Rid] = newValue;
+			lwm2m_write(endpoint, Oid, i, Rid, newValue);
+		}
 	}
 	updateUI();
-	return value;
+
+	function dataTypeCheck(Oid, Rid, value){
+		var def = m2mid.getRdef(Oid, Rid);
+		switch(def.type){
+			case "boolean":
+				if(value == "~"){
+					value = !homeStateNew[endpoint][Oid][i][Rid];
+				} else if(value == "true" || value == "1" || value == 1 || value == true)
+					value = true;
+				else if(value == "false" || value == "0" || value == 0 || value == false)
+					value = false;
+				else {
+					console.log("get wrong type data: not bool");
+					return ;
+				}
+				break;
+			case "float":
+			case "integer":
+				value = Number(value);
+				if (Number.isNaN(value)){
+					console.log("get wrong type data: not number");
+					return ;
+				}
+				break;
+			case "string":
+				value = value.toString();
+				break;
+			case "opaque":
+				
+				break;
+			default:
+				console.log("unknow type");
+				break;
+		}
+		return value;
+	}
 }
 //websocket
 
@@ -213,10 +196,7 @@ function handleWSReported(stateNew){
 					for(i in stateNew[key][endpoint][Oid]){
 						for(Rid in stateNew[key][endpoint][Oid][i]){
 							value = stateNew[key][endpoint][Oid][i][Rid];
-							value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired]);
-							if(value != undefined){
-								lwm2m_write(endpoint, Oid, i, Rid, value);
-							}
+							stateChange(endpoint, Oid, i, Rid, value);
 						}
 					}
 				}
@@ -240,10 +220,10 @@ function listClients(commands) {
 }
 
 function resourceShow(endpoint){
-	if(!homeStateNew.reported[endpoint]){
+	if(!homeStateNew[endpoint]){
 		return;
 	}
-	var show = homeStateNew.reported[endpoint];
+	var show = homeStateNew[endpoint];
 	for(obj in show){
 		console.log('%s: ', m2mid.getOid(obj).key);
 		for(instance in show[obj]){
@@ -264,10 +244,8 @@ function write(commands){
 	if(Oid < 20){
 		lwm2m_write(endpoint, Oid, i, Rid, value);
 	} else {
-		value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired]);
-		if (value != undefined){
-			lwm2m_write(endpoint, Oid, i, Rid, value);
-		}
+		stateChange(endpoint, Oid, i, Rid, value);
+
 	}
 }
 

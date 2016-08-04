@@ -22,7 +22,7 @@ function start(handleDelta, callback){
 	thingShadows = thingShadow(config);
 	aws_deviceConnect();
 	thingShadows.on('connect', function() {
-		// genericOperation('update', {state:{reported:null,desired:null}});
+		genericOperation('update', {state:{reported:null,desired:null}});
 		globalAWSFlag = true;
 		if(callback)
 			callback();
@@ -136,7 +136,7 @@ function shadowSend(state){
 
 	if(globalAWSFlag){
 		console.log("send the state to aws:\n%s", JSON.stringify(state, null, 4));
-		genericOperation("update", {state: state});
+		genericOperation("update", {state: {reported: state, desired: state}});
 	} else {
 		console.log("aws offline");
 	}

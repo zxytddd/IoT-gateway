@@ -44,29 +44,24 @@ function registerParser(endpoint, payload, homeStateNew){
 			out[found[key][0]][found[key][1]]={};
 	}
 	reported = deepCopy(out);
-	desired = deepCopy(out);
 	for(obj in reported){
 		for(instance in reported[obj]){
 			switch(obj){
 				case "3303":
 					reported[obj][instance][5700] = NaN;
-					delete desired[obj];
 					break;
 				case "3311":
 					reported[obj][instance][5850] = false;
-					desired[obj][instance][5850] = false;
 					break;
 				case "3347":
 					reported[obj][instance][5500] = false;
-					desired[obj][instance][5500] = false;
 					break;
 				default:
 					break;
 			}
 		}
 	}
-	homeStateNew.reported[endpoint] = deepCopy(reported);
-	homeStateNew.desired[endpoint] = deepCopy(desired);
+	homeStateNew[endpoint] = deepCopy(reported);
 }
 
 function start(registrationHandler) {

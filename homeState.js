@@ -1,5 +1,5 @@
-var homeStateNew = {reported: {}, desired: {}};
-var homeState = {reported: {}, desired: {}};
+var homeStateNew = {};
+var homeState = {};
 
 module.exports.stateNew = homeStateNew;
 module.exports.state = homeState;
