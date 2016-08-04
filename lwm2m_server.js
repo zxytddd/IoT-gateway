@@ -3,7 +3,7 @@ var config = require('./config').lwm2m,
 	m2mid = require('lwm2m-id'),
 	async = require('async'),
 	clUtils = require('command-node'),
-	deepCopy = require('./deepCopy');
+	deepCopy = require('./utils').deepCopy;
 
 function setHandlers(registrationHandler, serverInfo, callback) {
 	lwm2mServer.setHandler(serverInfo, 'registration', registrationHandler);

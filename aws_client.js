@@ -1,7 +1,6 @@
 
 var thingShadow = require('aws-iot-device-sdk').thingShadow,
 	clUtils = require('command-node'),
-	deepCopy = require('./deepCopy'),
 	config = require('./config').aws,
 	thingShadows,
 	operationTimeout = 10000,
@@ -135,17 +134,13 @@ function genericOperation(operation, state) {
 	}
 }
 
-function shadowSend(homeStateNew, homeState){
-	/*generate homeStateSend from homeStateNew and homeState in different*/
-	var homeStateSend = {};
-	homeStateSend = genObjSend(homeStateNew, homeState);
-	if(homeStateSend != undefined){
-		if(globalAWSFlag){
-			console.log("send the state to aws:\n%s", JSON.stringify(homeStateSend, null, 4));
-			genericOperation("update", {state: homeStateSend});
-		} else {
-			console.log("aws offline");
-		}
+function shadowSend(state){
+
+	if(globalAWSFlag){
+		console.log("send the state to aws:\n%s", JSON.stringify(state, null, 4));
+		genericOperation("update", {state: state});
+	} else {
+		console.log("aws offline");
 	}
 }
 

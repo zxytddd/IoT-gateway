@@ -15,7 +15,8 @@ var lwm2m_read = require('./lwm2m_server').read,
 	ws_send = require('./ws_client').send,
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
-	deepCopy = require('./deepCopy'),
+	deepCopy = require('./utils').deepCopy,
+	getDifferent = require('./utils').getDifferent,
 	controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
 
 function registrationHandler(endpoint, lifetime, version, binding, payload, callback) {
@@ -38,9 +39,8 @@ function registrationHandler(endpoint, lifetime, version, binding, payload, call
 }
 
 function embarcFunction(endpoint, payload) {
-	var Oid,
-		i,
-		Rid;
+	var Oid, i, Rid, 
+	stateSend = {};
 	/*parser the reg payload*/
 	lwm2m_registerParser(endpoint, payload, homeStateNew);
 	/*TODO: generate the map file*/
@@ -52,7 +52,7 @@ function embarcFunction(endpoint, payload) {
 	Rid = m2mid.getRid(Oid, 'sensorValue').value;
 	if(homeStateNew.reported[endpoint][Oid]){
 		for (i in homeStateNew.reported[endpoint][Oid]){
-			lwm2m_observe(endpoint, Oid, i, Rid, observeHandle(endpoint, Oid, i ,Rid), function (){
+				lwm2m_observe(endpoint, Oid, i, Rid, observeHandle(endpoint, Oid, i ,Rid), function (){
 			});
 		}
 	}
@@ -60,12 +60,11 @@ function embarcFunction(endpoint, payload) {
 	Rid = m2mid.getRid(Oid, 'dInState').value;
 	if(homeStateNew.reported[endpoint][Oid]){
 		for (i in homeStateNew.reported[endpoint][Oid]){
-			lwm2m_observe(endpoint, Oid, i, Rid, observeHandle(endpoint, Oid, i ,Rid), function (){
+				lwm2m_observe(endpoint, Oid, i, Rid, observeHandle(endpoint, Oid, i ,Rid), function (){
 			});
 		}
 	}
-	aws_send(homeStateNew, homeState);
-	ws_send(homeStateNew);
+	updateUI();
 }
 
 function observeHandle(endpoint, Oid, i, Rid){
@@ -112,9 +111,6 @@ function observeHandle(endpoint, Oid, i, Rid){
 					break;
 			}
 		}
-		aws_send(homeStateNew, homeState);
-		ws_send(homeStateNew);
-
 	}
 }
 //aws function
@@ -129,7 +125,7 @@ function handleDelta(thingName, stateObject){
 			for(i in homeStateDelta[endpoint][Oid]){
 				for(Rid in homeStateDelta[endpoint][Oid][i]){
 					value = homeStateDelta[endpoint][Oid][i][Rid];
-					value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired, homeState.desired]);
+					value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired]);
 					if (value != undefined){
 						lwm2m_write(endpoint, Oid, i, Rid, homeStateNew.reported[endpoint][Oid][i][Rid]);
 					}
@@ -137,8 +133,6 @@ function handleDelta(thingName, stateObject){
 			}
 		}
 	}
-	aws_send(homeStateNew, homeState);
-	ws_send(homeStateNew);
 	console.log("\nget a delta:%s\n", JSON.stringify(stateObject, null, 4));
 	clUtils.prompt();
 }
@@ -190,6 +184,7 @@ function stateChange(endpoint, Oid, i, Rid, value, state){
 	for(key in state){
 		state[key][endpoint][Oid][i][Rid] = value;
 	}
+	updateUI();
 	return value;
 }
 //websocket
@@ -230,11 +225,15 @@ function handleWSReported(stateNew){
 			console.log("Can't recieved reported");
 		}
 	}
-	aws_send(homeStateNew, homeState);
-	ws_send(homeStateNew);
-
 }
 
+function updateUI(){
+	var stateSend = getDifferent(homeStateNew, homeState);
+	if(stateSend != undefined){
+		aws_send(stateSend);
+		ws_send(stateSend);
+	}	
+}
 //command-node
 function listClients(commands) {
 	lwm2m_listClients(resourceShow);
@@ -268,8 +267,6 @@ function write(commands){
 		value = stateChange(endpoint, Oid, i, Rid, value, [homeStateNew.reported, homeStateNew.desired]);
 		if (value != undefined){
 			lwm2m_write(endpoint, Oid, i, Rid, value);
-			aws_send(homeStateNew, homeState);
-			ws_send(homeStateNew);
 		}
 	}
 }
