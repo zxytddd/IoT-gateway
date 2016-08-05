@@ -95,9 +95,7 @@ function handleDelta(thingName, stateObject){
 }
 
 function stateChange(endpoint, Oid, i, Rid, value){
-	var key,
-		mapTarget,
-		newValue;
+	var newValue;
 	//simulate switch by push button.
 	if(Oid == m2mid.getOid("pushButton") && Rid == m2mid.getRid("pushButton", "dInState"))
 		value = "~";
@@ -107,6 +105,11 @@ function stateChange(endpoint, Oid, i, Rid, value){
 	updateUI();
 
 	function stateMap(endpoint, Oid, i, Rid, controlMap){
+		var key;
+		Oid = Oid.toString();
+		i = i.toString();
+		Rid = Rid.toString();
+		console.log(endpoint + Oid + i + Rid);
 		if(!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
 			!controlMap[endpoint][Oid][i] ||
 			controlMap[endpoint][Oid][i][Rid] == undefined){
@@ -114,11 +117,12 @@ function stateChange(endpoint, Oid, i, Rid, value){
 			valueChange(endpoint, Oid, i, Rid, value);
 		} else {
 			//found map
-			mapTarget = controlMap[endpoint][Oid][i][Rid];
+			var mapTarget = controlMap[endpoint][Oid][i][Rid];
 			if(typeof(mapTarget[0]) != "object"){
 				mapTarget = [mapTarget];
 			} 
-			for(key in mapTarget){
+			for(var key in mapTarget){
+				console.log(mapTarget[key]);
 				if(mapTarget[key] == "0" || 
 					(endpoint == mapTarget[key][0] && 
 					Oid == mapTarget[key][1] && 
@@ -135,7 +139,9 @@ function stateChange(endpoint, Oid, i, Rid, value){
 	}
 
 	function valueChange(endpoint, Oid, i, Rid, value){
-		newValue = dataTypeCheck(Oid, Rid, value);
+		//TODO: check weather homeStateNew[endpoint][Oid][i][Rid] exist.
+
+		newValue = dataTypeCheck(endpoint, Oid, i, Rid, value);
 		if(newValue == undefined){
 			return;
 		}
@@ -143,7 +149,7 @@ function stateChange(endpoint, Oid, i, Rid, value){
 		lwm2m_write(endpoint, Oid, i, Rid, newValue);
 	}
 
-	function dataTypeCheck(Oid, Rid, value){
+	function dataTypeCheck(endpoint, Oid, i, Rid, value){
 		var def = m2mid.getRdef(Oid, Rid);
 		switch(def.type){
 			case "boolean":
@@ -167,6 +173,9 @@ function stateChange(endpoint, Oid, i, Rid, value){
 				}
 				break;
 			case "string":
+				if(value == "~"){
+					value = homeStateNew[endpoint][Oid][i][Rid] == "on" ? "off" : "on";
+				}
 				value = value.toString();
 				break;
 			case "opaque":

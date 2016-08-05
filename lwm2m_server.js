@@ -56,6 +56,9 @@ function registerParser(endpoint, payload, homeStateNew){
 				case "3347":
 					reported[obj][instance][5500] = false;
 					break;
+				case "3341":
+					reported[obj][instance][5527] = "";
+					break;
 				default:
 					break;
 			}
