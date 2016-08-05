@@ -69,8 +69,6 @@ function embarcFunction(endpoint, payload) {
 
 function handleObserve(endpoint, Oid, i, Rid){
 	function obs(value){
-		if(Oid == m2mid.getOid("pushButton") && Rid == m2mid.getRid("pushButton", "dInState"))
-			value = "~";
 		stateChange(endpoint, Oid, i, Rid, value);
 	}
 	return obs;
@@ -100,39 +98,50 @@ function stateChange(endpoint, Oid, i, Rid, value){
 	var key,
 		mapTarget,
 		newValue;
+	//simulate switch by push button.
+	if(Oid == m2mid.getOid("pushButton") && Rid == m2mid.getRid("pushButton", "dInState"))
+		value = "~";
 	//check map
-	controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
-	if(!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
-		!controlMap[endpoint][Oid][i] ||
-		controlMap[endpoint][Oid][i][Rid] == undefined){
-		//no map
+	var controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
+	stateMap(endpoint, Oid, i, Rid, controlMap);
+	updateUI();
+
+	function stateMap(endpoint, Oid, i, Rid, controlMap){
+		if(!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
+			!controlMap[endpoint][Oid][i] ||
+			controlMap[endpoint][Oid][i][Rid] == undefined){
+			//no map
+			valueChange(endpoint, Oid, i, Rid, value);
+		} else {
+			//found map
+			mapTarget = controlMap[endpoint][Oid][i][Rid];
+			if(typeof(mapTarget[0]) != "object"){
+				mapTarget = [mapTarget];
+			} 
+			for(key in mapTarget){
+				if(mapTarget[key] == "0" || 
+					(endpoint == mapTarget[key][0] && 
+					Oid == mapTarget[key][1] && 
+					i == mapTarget[key][2] && 
+					Rid == mapTarget[key][3])){
+					//self map
+					valueChange(endpoint, Oid, i, Rid, value);
+				} else {
+					//multi map
+					stateMap(mapTarget[key][0], mapTarget[key][1], mapTarget[key][2], mapTarget[key][3], controlMap);
+				}
+			}
+		}
+	}
+
+	function valueChange(endpoint, Oid, i, Rid, value){
 		newValue = dataTypeCheck(Oid, Rid, value);
 		if(newValue == undefined){
 			return;
 		}
 		homeStateNew[endpoint][Oid][i][Rid] = newValue;
 		lwm2m_write(endpoint, Oid, i, Rid, newValue);
-
-	} else {
-		mapTarget = controlMap[endpoint][Oid][i][Rid];
-		if(typeof(mapTarget[0]) != "object"){
-			mapTarget = [mapTarget];
-		} 
-		if (mapTarget[0])
-		for(key in mapTarget){
-			endpoint = mapTarget[key][0];
-			Oid = mapTarget[key][1];
-			i = mapTarget[key][2];
-			Rid = mapTarget[key][3];
-			newValue = dataTypeCheck(Oid, Rid, value);
-			if(newValue == undefined){
-				continue;
-			}
-			homeStateNew[endpoint][Oid][i][Rid] = newValue;
-			lwm2m_write(endpoint, Oid, i, Rid, newValue);
-		}
 	}
-	updateUI();
 
 	function dataTypeCheck(Oid, Rid, value){
 		var def = m2mid.getRdef(Oid, Rid);
