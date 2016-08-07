@@ -175,8 +175,8 @@ function stateChange(endpoint, Oid, i, Rid, value){
 				break;
 			case "string":
 				if(value == "~"){
-					value = homeStateNew[endpoint][Oid][i][Rid] == "on" ? "off" : "on";
-				}
+					value = !(homeStateNew[endpoint][Oid][i][Rid] == "true");
+				} 
 				value = value.toString();
 				break;
 			case "opaque":
