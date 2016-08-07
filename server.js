@@ -109,7 +109,6 @@ function stateChange(endpoint, Oid, i, Rid, value){
 		Oid = Oid.toString();
 		i = i.toString();
 		Rid = Rid.toString();
-		console.log(endpoint + Oid + i + Rid);
 		if(!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
 			!controlMap[endpoint][Oid][i] ||
 			controlMap[endpoint][Oid][i][Rid] == undefined){
@@ -122,7 +121,6 @@ function stateChange(endpoint, Oid, i, Rid, value){
 				mapTarget = [mapTarget];
 			} 
 			for(var key in mapTarget){
-				console.log(mapTarget[key]);
 				if(mapTarget[key] == "0" || 
 					(endpoint == mapTarget[key][0] && 
 					Oid == mapTarget[key][1] && 
@@ -139,8 +137,11 @@ function stateChange(endpoint, Oid, i, Rid, value){
 	}
 
 	function valueChange(endpoint, Oid, i, Rid, value){
-		//TODO: check weather homeStateNew[endpoint][Oid][i][Rid] exist.
-
+		if(!homeStateNew[endpoint] || !homeStateNew[endpoint][Oid] ||
+			!homeStateNew[endpoint][Oid][i] ||
+			homeStateNew[endpoint][Oid][i][Rid] == undefined){
+			return;
+		}
 		newValue = dataTypeCheck(endpoint, Oid, i, Rid, value);
 		if(newValue == undefined){
 			return;
