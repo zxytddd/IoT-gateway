@@ -1,0 +1,29 @@
+{
+  "name": "embarciot",
+  "version": "1.0.0",
+  "description": "The IoT gateway of embARC SmartHome demo.",
+  "main": "server.js",
+  "dependencies": {
+    "async": "^2.0.1",
+    "lwm2m-id": "^1.3.1",
+    "aws-iot-device-sdk": "^1.0.12",
+    "websocket": "^1.0.23",
+    "command-node": "^0.1.1",
+    "lwm2m-node-lib": "^0.5.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zxytddd/IoT-gateway.git"
+  },
+  "keywords": [
+    "embARC",
+    "IoT",
+    "gateway"
+  ],
+  "author": "Xinyi Zhao",
+  "license": "ISC"
+}
