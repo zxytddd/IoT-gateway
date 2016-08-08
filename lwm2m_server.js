@@ -4,9 +4,10 @@ var config = require('./config').lwm2m,
 	async = require('async'),
 	deepCopy = require('./utils').deepCopy;
 
-function setHandlers(registrationHandler, serverInfo, callback) {
+function setHandlers(registrationHandler, unregistrationHandler, serverInfo, callback) {
 	lwm2mServer.setHandler(serverInfo, 'registration', registrationHandler);
 	lwm2mServer.setHandler(serverInfo, 'unregistration', function (device, callback) {
+		unregistrationHandler(device.name);
 		console.log('\nDevice unregistration:\n----------------------------\n');
 		console.log('Device location: %s', device.name);
 		callback();
@@ -67,10 +68,10 @@ function registerParser(endpoint, payload, homeStateNew){
 	homeStateNew[endpoint] = deepCopy(reported);
 }
 
-function start(registrationHandler) {
+function start(registrationHandler, unregistrationHandler) {
 	async.waterfall([
 		async.apply(lwm2mServer.start, config),
-		async.apply(setHandlers, registrationHandler),
+		async.apply(setHandlers, registrationHandler, unregistrationHandler),
 	], handleResult('Server started'));
 }
 

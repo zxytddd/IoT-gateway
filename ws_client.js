@@ -33,8 +33,7 @@ function start(handleMessage){
 function send(state){
 	if(connection){
 		var time = 0;
-		state = {reported: state, desired: state, timestamp: time};
-		connection.sendUTF(JSON.stringify(state));
+		connection.sendUTF(JSON.stringify({state: {reported: state, desired: state}}));
 	} else {
 		console.log("webSocket off line");
 	}

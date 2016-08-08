@@ -37,6 +37,9 @@ function registrationHandler(endpoint, lifetime, version, binding, payload, call
 	
 	callback();
 }
+function unregistrationHandler(endpoint) {
+	deleteEndpoint(endpoint);
+}
 
 function embarcFunction(endpoint, payload) {
 	var Oid, i, Rid, 
@@ -102,7 +105,7 @@ function stateChange(endpoint, Oid, i, Rid, value){
 	//check map
 	var controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
 	stateMap(endpoint, Oid, i, Rid, controlMap);
-	updateUI();
+	// updateUI();
 
 	function stateMap(endpoint, Oid, i, Rid, controlMap){
 		var key;
@@ -147,7 +150,7 @@ function stateChange(endpoint, Oid, i, Rid, value){
 			return;
 		}
 		homeStateNew[endpoint][Oid][i][Rid] = newValue;
-		lwm2m_write(endpoint, Oid, i, Rid, newValue);
+		lwm2m_write(endpoint, Oid, i, Rid, newValue, updateUI);
 	}
 
 	function dataTypeCheck(endpoint, Oid, i, Rid, value){
@@ -232,6 +235,17 @@ function updateUI(){
 		aws_send(stateSend);
 		ws_send(stateSend);
 	}	
+}
+
+function deleteEndpoint(endpoint){
+	if(homeStateNew[endpoint] != undefined){
+		var stateSend={};
+		homeStateNew[endpoint] = undefined;
+		homeState = deepCopy(homeStateNew);
+		stateSend[endpoint] = null;
+		aws_send(stateSend);
+		ws_send(stateSend);
+	}
 }
 //command-node
 function listClients(commands) {
@@ -359,7 +373,7 @@ var commands = {
 		handler: showMap
 	},
 	'reboot': {
-		parameters: ['deviceId'],
+		parameters: ['clientName'],
 		description: 'Reboot the client',
 		handler: reboot
 	},
@@ -371,7 +385,7 @@ var commands = {
 };
 
 //main
-lwm2m_start(registrationHandler);
+lwm2m_start(registrationHandler, unregistrationHandler);
 ws_start(handleWSMessage);
 // aws_start(handleDelta);
 clUtils.initialize(commands, 'LWM2M-Server> ');
