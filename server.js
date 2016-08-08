@@ -18,7 +18,6 @@ var lwm2m_read = require('./lwm2m_server').read,
 	deepCopy = require('./utils').deepCopy,
 	getDifferent = require('./utils').getDifferent,
 	controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
-
 function registrationHandler(endpoint, lifetime, version, binding, payload, callback) {
 	setTimeout(function (){
 		switch(endpoint.slice(0, 6)){
@@ -34,9 +33,9 @@ function registrationHandler(endpoint, lifetime, version, binding, payload, call
 		}
 		clUtils.prompt();
 	}, 1000);
-	
 	callback();
 }
+//Handler when a lwm2m client connect.
 function unregistrationHandler(endpoint) {
 	deleteEndpoint(endpoint);
 }
@@ -46,7 +45,6 @@ function embarcFunction(endpoint, payload) {
 	stateSend = {};
 	/*parser the reg payload*/
 	lwm2m_registerParser(endpoint, payload, homeStateNew);
-	/*TODO: generate the map file*/
 
 	/*observe some resource 
 	TODO: read the orgin data*/
@@ -78,7 +76,6 @@ function handleObserve(endpoint, Oid, i, Rid){
 }
 
 //aws function
-
 function handleDelta(thingName, stateObject){
 	/*find the change from stateObject and send it to emsk(using lwm2m_write()) and send it to aws iot*/
 	var homeStateDelta = stateObject.state,
@@ -112,11 +109,12 @@ function stateChange(endpoint, Oid, i, Rid, value){
 		Oid = Oid.toString();
 		i = i.toString();
 		Rid = Rid.toString();
+		valueChange(endpoint, Oid, i, Rid, value);
 		if(!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
 			!controlMap[endpoint][Oid][i] ||
 			controlMap[endpoint][Oid][i][Rid] == undefined){
 			//no map
-			valueChange(endpoint, Oid, i, Rid, value);
+
 		} else {
 			//found map
 			var mapTarget = controlMap[endpoint][Oid][i][Rid];
@@ -130,9 +128,9 @@ function stateChange(endpoint, Oid, i, Rid, value){
 					i == mapTarget[key][2] && 
 					Rid == mapTarget[key][3])){
 					//self map
-					valueChange(endpoint, Oid, i, Rid, value);
+
 				} else {
-					//multi map
+					//map other resource
 					stateMap(mapTarget[key][0], mapTarget[key][1], mapTarget[key][2], mapTarget[key][3], controlMap);
 				}
 			}
@@ -143,13 +141,16 @@ function stateChange(endpoint, Oid, i, Rid, value){
 		if(!homeStateNew[endpoint] || !homeStateNew[endpoint][Oid] ||
 			!homeStateNew[endpoint][Oid][i] ||
 			homeStateNew[endpoint][Oid][i][Rid] == undefined){
+			//target resource is not in homeStateNew.
 			return;
 		}
+		//check whether value is legal.
 		newValue = dataTypeCheck(endpoint, Oid, i, Rid, value);
 		if(newValue == undefined){
 			return;
 		}
 		homeStateNew[endpoint][Oid][i][Rid] = newValue;
+		//put updateUI() as callback function to send data to UI(freeboard and AWS).
 		lwm2m_write(endpoint, Oid, i, Rid, newValue, updateUI);
 	}
 
@@ -157,6 +158,7 @@ function stateChange(endpoint, Oid, i, Rid, value){
 		var def = m2mid.getRdef(Oid, Rid);
 		switch(def.type){
 			case "boolean":
+			//"~" is used to simulate the switch by push button.
 				if(value == "~"){
 					value = !homeStateNew[endpoint][Oid][i][Rid];
 				} else if(value == "true" || value == "1" || value == 1 || value == true)
@@ -198,6 +200,7 @@ function handleWSMessage(message) {
 	if (message.type === 'utf8') {
 		var msg = message.utf8Data;
 		console.log('Received Message: ' + msg);
+		//"{}" means that server order the whole state.
 		if(msg == "{}"){
 			ws_send(homeStateNew);
 		} else {
