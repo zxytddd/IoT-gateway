@@ -78,8 +78,12 @@ function start(registrationHandler, unregistrationHandler) {
 function write(endpoint, Oid, i, Rid, value, callback) {
 	var def = m2mid.getRdef(Oid, Rid),
 		cb;
-	if (def.access == 'R')
+	if (def.access == 'R'){
+		if(callback){
+			callback();
+		}
 		return ;
+	}
 	lwm2mServer.getDevice(endpoint, function (num, device){
 		if (device == null)
 			return;
