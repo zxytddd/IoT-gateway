@@ -1,6 +1,6 @@
 var WebSocketServer = require('websocket').server,
 	http = require('http');
-var connection,
+var clients = [],
 	server,
 	wsServer;
 
@@ -20,22 +20,25 @@ function start(handleMessage){
 	});
 
 	wsServer.on('request', function(request) {
-		connection = request.accept(null, request.origin);
-		console.log(' Connection accepted.');
-		connection.on('message', handleMessage);
-		connection.on('close', function(reasonCode, description) {
-			console.log(' Peer ' + connection.remoteAddress + ' disconnected.');
-			connection = 0;
+		var newClient = request.accept(null, request.origin);
+		clients.push(newClient);
+		console.log(' A new client accepted.');
+		newClient.on('message', handleMessage);
+		newClient.on('close', function(reasonCode, description) {
+			console.log(' Peer ' + newClient.remoteAddress + ' disconnected.');
+			for(var key in clients){
+				if (clients[key] == newClient){
+					clients.slice(0, key).concat(clients.slice(key + 1));
+					break;
+				}
+			}
 		});
 	});
 }
 
 function send(state){
-	if(connection){
-		var time = 0;
-		connection.sendUTF(JSON.stringify({state: {reported: state, desired: state}}));
-	} else {
-		console.log("webSocket off line");
+	for(var key in clients){
+		clients[key].sendUTF(JSON.stringify({state: {reported: state, desired: state}}));
 	}
 }
 
