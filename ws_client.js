@@ -22,13 +22,12 @@ function start(handleMessage){
 	wsServer.on('request', function(request) {
 		var newClient = request.accept(null, request.origin);
 		clients.push(newClient);
-		console.log(' A new client accepted.');
 		newClient.on('message', handleMessage);
 		newClient.on('close', function(reasonCode, description) {
 			console.log(' Peer ' + newClient.remoteAddress + ' disconnected.');
 			for(var key in clients){
 				if (clients[key] == newClient){
-					clients.slice(0, key).concat(clients.slice(key + 1));
+					clients = clients.slice(0, key).concat(clients.slice(Number(key) + 1));
 					break;
 				}
 			}

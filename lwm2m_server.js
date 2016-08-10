@@ -18,9 +18,9 @@ function setHandlers(registrationHandler, unregistrationHandler, serverInfo, cal
 function handleResult(message) {
 	return function(error) {
 		if (error) {
-			console.log('\nLwm2m: ERROR  \t%s', JSON.stringify(error, null, 4));
+			console.log('Lwm2m: ERROR  \t%s', JSON.stringify(error, null, 4));
 		} else {
-			console.log('\nLwm2m: SUCCESS\t%s', message);
+			console.log('Lwm2m: SUCCESS\t%s', message);
 		}
 	};
 }
@@ -78,6 +78,9 @@ function start(registrationHandler, unregistrationHandler) {
 function write(endpoint, Oid, i, Rid, value, callback) {
 	var def = m2mid.getRdef(Oid, Rid),
 		cb;
+	if (!def){
+		handleResult()("Invalid Oid and Rid" + Oid + ": " + Rid);
+	}
 	if (def.access == 'R'){
 		if(callback){
 			callback();
