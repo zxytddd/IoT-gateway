@@ -13,6 +13,7 @@ var lwm2m_read = require('./lwm2m_server').read,
 	aws_send = require('./aws_client').send,
 	ws_start = require('./ws_client').start,
 	ws_send = require('./ws_client').send,
+	http_start = require('./http_server').start,
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
 	deepCopy = require('./utils').deepCopy,
@@ -518,5 +519,6 @@ var commands = {
 //main
 lwm2m_start(registrationHandler, unregistrationHandler);
 ws_start(handleWSMessage);
-// aws_start(handleDelta);
+aws_start(handleDelta);
+http_start(80);
 clUtils.initialize(commands, 'LWM2M-Server> ');
