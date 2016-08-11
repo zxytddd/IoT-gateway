@@ -89,8 +89,9 @@ function write(endpoint, Oid, i, Rid, value, callback) {
 		return ;
 	}
 	lwm2mServer.getDevice(endpoint, function (num, device){
-		if (device === null)
+		if (device === undefined){
 			return;
+		}
 		var payload;
 		switch(def.type){
 			case "boolean":

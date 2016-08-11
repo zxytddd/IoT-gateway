@@ -96,7 +96,7 @@ function handleDelta(thingName, stateObject){
 }
 
 function stateChange(endpoint, Oid, i, Rid, value){
-	var newValue;
+	var stack = [];
 	//simulate switch by push button.
 	if(Oid == m2mid.getOid("pushButton") && Rid == m2mid.getRid("pushButton", "dInState"))
 		value = "~";
@@ -144,13 +144,18 @@ function stateChange(endpoint, Oid, i, Rid, value){
 			return;
 		}
 		//check whether value is legal.
-		newValue = dataTypeCheck(endpoint, Oid, i, Rid, value);
+		var newValue = dataTypeCheck(endpoint, Oid, i, Rid, value);
 		if(newValue === undefined){
 			return;
 		}
-		homeStateNew[endpoint][Oid][i][Rid] = newValue;
+		stack.push(1);
 		//put updateUI() as callback function to send data to UI(freeboard and AWS).
-		lwm2m_write(endpoint, Oid, i, Rid, newValue, updateUI);
+		lwm2m_write(endpoint, Oid, i, Rid, newValue, function (){
+			homeStateNew[endpoint][Oid][i][Rid] = newValue;
+			stack.pop();
+			if(stack.length === 0)
+				updateUI();
+		});
 	}
 
 	function dataTypeCheck(endpoint, Oid, i, Rid, value){
@@ -212,19 +217,9 @@ function handleWSMessage(message) {
 }
 
 function handleWSReported(stateNew){
-	var key, endpoint, Oid, i ,Rid, value;
-	for(key in stateNew){
+	for(var key in stateNew){
 		if(key == "desired"){
-			for(endpoint in stateNew[key]){
-				for(Oid in stateNew[key][endpoint]){
-					for(i in stateNew[key][endpoint][Oid]){
-						for(Rid in stateNew[key][endpoint][Oid][i]){
-							value = stateNew[key][endpoint][Oid][i][Rid];
-							stateChange(endpoint, Oid, i, Rid, value);
-						}
-					}
-				}
-			}
+			handleDelta(null, {state: stateNew[key]});
 		}else{
 			console.log("Can't recieved reported");
 		}
@@ -448,7 +443,7 @@ function test1(commands){
 	updateUI();
 }
 function test2(commands){
-	deleteEndpoint("endpoint1");
+	
 }
 var commands = {
 	'list': {
