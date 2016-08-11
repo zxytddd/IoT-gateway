@@ -5,28 +5,26 @@ var thingShadow = require('aws-iot-device-sdk').thingShadow,
 	operationTimeout = 10000,
 	thingName = 'SmartHome',
 	globalAWSFlag = false,
-	reconnectTime = 0;
+	handleResult = function (){},
 	stack = [];
-
-function handleResult(message, error) {
-	if (error === 0) {
-		console.log('AWS  : SUCCESS\t%s', message);
-	} else if(error == 1) {
-		console.log('AWS  : ERROR  \t%s', message);
-	} else if(error === undefined){
-		console.log('AWS  :        \t%s', message);
-	}
-}
 
 function start(handleDelta, callback){
 	thingShadows = thingShadow(config);
 	thingShadows.on('connect', function() {
 		registerThing(thingName);
-		reconnectTime = 0;
 		setTimeout(function (){
 			globalAWSFlag = true;
 			genericOperation('update', {state:{reported:null,desired:null}});
 		},5000);
+		handleResult = function (message, error) {
+			if (error === 0) {
+				console.log('AWS  : SUCCESS\t%s', message);
+			} else if(error == 1) {
+				console.log('AWS  : ERROR  \t%s', message);
+			} else if(error === undefined){
+				console.log('AWS  :        \t%s', message);
+			}
+		}
 		if(callback)
 			callback();
 		else
@@ -41,7 +39,6 @@ function start(handleDelta, callback){
 
 	thingShadows.on('reconnect', function() {
 		handleResult('reconnecting');
-		reconnectTime += 1;
 	});
 
 	thingShadows.on('offline', function() {
@@ -67,9 +64,7 @@ function start(handleDelta, callback){
 
 	thingShadows.on('error', function(error) {
 		if (error.code != 'ETIMEDOUT')
-			console.log('error', error);
-		if (reconnectTime == 3)
-			thingShadows.end();
+			handleResult(error, 1);
 	});
 
 	thingShadows.on('delta', handleDelta);
@@ -78,7 +73,9 @@ function start(handleDelta, callback){
 function registerThing(thingName) {
 	thingShadows.register(thingName, {
 		ignoreDeltas: false,
-		operationTimeout: operationTimeout
+		operationTimeout: operationTimeout,
+    	enableVersioning: false,
+
 	});
 
 }
@@ -111,7 +108,7 @@ function shadowSend(state){
 		console.log("send the state to aws:\n%s", JSON.stringify(state, null, 4));
 		genericOperation("update", {state: {reported: state, desired: state}});
 	} else {
-		console.log("aws offline");
+		handleResult("aws offline", 1);
 	}
 }
 
