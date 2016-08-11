@@ -9,11 +9,11 @@ var thingShadow = require('aws-iot-device-sdk').thingShadow,
 	stack = [];
 
 function handleResult(message, error) {
-	if (error == 0) {
+	if (error === 0) {
 		console.log('AWS  : SUCCESS\t%s', message);
 	} else if(error == 1) {
 		console.log('AWS  : ERROR  \t%s', message);
-	} else if(error == undefined){
+	} else if(error === undefined){
 		console.log('AWS  :        \t%s', message);
 	}
 }

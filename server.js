@@ -79,7 +79,7 @@ function handleObserve(endpoint, Oid, i, Rid){
 function handleDelta(thingName, stateObject){
 	/*find the change from stateObject and send it to emsk(using lwm2m_write()) and send it to aws iot*/
 	var homeStateDelta = stateObject.state,
-		value;
+		value, endpoint, Oid, i, Rid;
 	for(endpoint in homeStateDelta){
 		for(Oid in homeStateDelta[endpoint]){
 			for(i in homeStateDelta[endpoint][Oid]){
@@ -102,17 +102,15 @@ function stateChange(endpoint, Oid, i, Rid, value){
 	//check map
 	var controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
 	stateMap(endpoint, Oid, i, Rid, controlMap);
-	// updateUI();
 
 	function stateMap(endpoint, Oid, i, Rid, controlMap){
-		var key;
 		Oid = Oid.toString();
 		i = i.toString();
 		Rid = Rid.toString();
 		valueChange(endpoint, Oid, i, Rid, value);
 		if(!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
 			!controlMap[endpoint][Oid][i] ||
-			controlMap[endpoint][Oid][i][Rid] == undefined){
+			controlMap[endpoint][Oid][i][Rid] === undefined){
 			//no map
 
 		} else {
@@ -140,13 +138,13 @@ function stateChange(endpoint, Oid, i, Rid, value){
 	function valueChange(endpoint, Oid, i, Rid, value){
 		if(!homeStateNew[endpoint] || !homeStateNew[endpoint][Oid] ||
 			!homeStateNew[endpoint][Oid][i] ||
-			homeStateNew[endpoint][Oid][i][Rid] == undefined){
+			homeStateNew[endpoint][Oid][i][Rid] === undefined){
 			//target resource is not in homeStateNew.
 			return;
 		}
 		//check whether value is legal.
 		newValue = dataTypeCheck(endpoint, Oid, i, Rid, value);
-		if(newValue == undefined){
+		if(newValue === undefined){
 			return;
 		}
 		homeStateNew[endpoint][Oid][i][Rid] = newValue;
@@ -161,9 +159,9 @@ function stateChange(endpoint, Oid, i, Rid, value){
 			//"~" is used to simulate the switch by push button.
 				if(value == "~"){
 					value = !homeStateNew[endpoint][Oid][i][Rid];
-				} else if(value == "true" || value == "1" || value == 1 || value == true)
+				} else if(value == "true" || value == "1" || value == 1 || value === true)
 					value = true;
-				else if(value == "false" || value == "0" || value == 0 || value == false)
+				else if(value == "false" || value == "0" || value === 0 || value === false)
 					value = false;
 				else {
 					console.log("get wrong type data: not bool");
@@ -234,14 +232,14 @@ function handleWSReported(stateNew){
 
 function updateUI(){
 	var stateSend = getDifferent(homeStateNew, homeState);
-	if(stateSend != undefined){
+	if(stateSend !== undefined){
 		aws_send(stateSend);
 		ws_send(stateSend);
 	}	
 }
 
 function deleteEndpoint(endpoint){
-	if(homeStateNew[endpoint] != undefined){
+	if(homeStateNew[endpoint] !== undefined){
 		var stateSend={};
 		homeStateNew[endpoint] = undefined;
 		homeState = deepCopy(homeStateNew);
@@ -260,11 +258,11 @@ function resourceShow(endpoint){
 		return;
 	}
 	var show = homeStateNew[endpoint];
-	for(obj in show){
+	for(var obj in show){
 		console.log('%s: ', m2mid.getOid(obj).key);
-		for(instance in show[obj]){
+		for(var instance in show[obj]){
 			console.log('\t%d:', instance);
-			for(resource in show[obj][instance]){
+			for(var resource in show[obj][instance]){
 				console.log('\t\t%s:\t\t%s', m2mid.getRid(obj, resource).key, show[obj][instance][resource].toString());
 			}
 		}
@@ -301,7 +299,7 @@ function upload(commands) {
 				}
 			});
 		}
-	})
+	});
 }
 
 function execute(commands) {
@@ -324,12 +322,132 @@ function observe(commands){
 	// clUtils.executeCommander(['cancel', 1, 1, 1, 1]);
 }
 function showMap(commands){
-	controlMap = JSON.parse(fs.readFileSync('./controlMap.json')),
+	controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
 	console.log(JSON.stringify(controlMap, null, 4));
 }
 function reboot(commands){
 	lwm2m_execute(commands[0], 3, 0, 4);
 	clUtils.prompt();
+}
+function test1(commands){
+	homeStateNew = {
+		"endpoint1":{
+			"3303":{
+				"0":{
+					"5700": true
+				}
+			},
+			"3311":{
+				"0":{
+					"5850":true
+				}
+			}
+		},
+
+		"endpoint2":{
+			"3303":{
+				"0":{
+					"5700": true
+				}
+			},
+			"3311":{
+				"0":{
+					"5850":true
+				},
+				"1":{
+					"5850":true
+				}
+			}
+		},
+
+		"endpoint3":{
+			"3303":{
+				"0":{
+					"5700": true
+				}
+			}
+		},
+
+		"endpoint4":{
+			"3303":{
+				"0":{
+					"5700": true
+				}
+			},
+			"3311":{
+				"0":{
+					"5850":true
+				},
+				"1":{
+					"5850":true
+				}
+			}
+		},	
+		"endpoint5":{
+			"3303":{
+				"0":{
+					"5700": true
+				}
+			},
+			"3311":{
+				"0":{
+					"5850":true
+				},
+				"1":{
+					"5850":true
+				}
+			}
+		},	
+		"endpoint6":{
+			"3303":{
+				"0":{
+					"5700": true
+				}
+			},
+			"3311":{
+				"0":{
+					"5850":true
+				},
+				"1":{
+					"5850":true
+				}
+			}
+		},	
+		"endpoint7":{
+			"3303":{
+				"0":{
+					"5700": true
+				}
+			},
+			"3311":{
+				"0":{
+					"5850":true
+				},
+				"1":{
+					"5850":true
+				}
+			}
+		},	
+		"endpoint8":{
+			"3303":{
+				"0":{
+					"5700": true
+				}
+			},
+			"3311":{
+				"0":{
+					"5850":true
+				},
+				"1":{
+					"5850":true
+				}
+			}
+		}
+	};
+	updateUI();
+}
+function test2(commands){
+	deleteEndpoint("endpoint1");
 }
 var commands = {
 	'list': {
@@ -379,6 +497,16 @@ var commands = {
 		parameters: ['clientName'],
 		description: 'Reboot the client',
 		handler: reboot
+	},
+	'test1': {
+		parameters: [],
+		description: 'Reboot the client',
+		handler: test1
+	},
+	'test2': {
+		parameters: [],
+		description: 'Reboot the client',
+		handler: test2
 	},
 	'state': {
 		parameters: [],

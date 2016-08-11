@@ -29,7 +29,8 @@ function registerParser(endpoint, payload, homeStateNew){
 	var out = {},
 		found = payload.split('>,<'),
 		reported = {}, 
-		desired={};
+		desired={},
+		key;
 	found[0] = found[0].slice(1);
 	found[found.length - 1] = found[found.length - 1].slice(0, found[found.length - 1].length - 1);
 	for(key in found){
@@ -45,8 +46,8 @@ function registerParser(endpoint, payload, homeStateNew){
 			out[found[key][0]][found[key][1]]={};
 	}
 	reported = deepCopy(out);
-	for(obj in reported){
-		for(instance in reported[obj]){
+	for(var obj in reported){
+		for(var instance in reported[obj]){
 			switch(obj){
 				case "3303":
 					reported[obj][instance][5700] = NaN;
@@ -88,7 +89,7 @@ function write(endpoint, Oid, i, Rid, value, callback) {
 		return ;
 	}
 	lwm2mServer.getDevice(endpoint, function (num, device){
-		if (device == null)
+		if (device === null)
 			return;
 		var payload;
 		switch(def.type){
@@ -105,7 +106,7 @@ function write(endpoint, Oid, i, Rid, value, callback) {
 				payload = value.toString();
 				break;
 		}
-		if(payload != null){
+		if(payload !== null){
 			if(callback){
 				cb = callback;
 			} else {
@@ -121,7 +122,7 @@ function write(endpoint, Oid, i, Rid, value, callback) {
 function read(endpoint, Oid, i, Rid, callback) {
 	lwm2mServer.getDevice(endpoint, function (num, device){
 		var cb;
-		if (device == null)
+		if (device === null)
 			return;
 		if(callback){
 			cb = callback;
@@ -138,7 +139,7 @@ function read(endpoint, Oid, i, Rid, callback) {
 function execute(endpoint, Oid, i, Rid, callback) {
 	lwm2mServer.getDevice(endpoint, function (num, device){
 		var cb;
-		if (device == null)
+		if (device === null)
 			return;
 		if (callback){
 			cb = callback;
@@ -151,7 +152,7 @@ function execute(endpoint, Oid, i, Rid, callback) {
 
 function observe(endpoint, Oid, i, Rid, handle, callback){
 	lwm2mServer.getDevice(endpoint, function (num, device){
-		if (device == null){
+		if (device === null){
 			return;
 		}
 		lwm2mServer.observe(device.id, Oid, i, Rid, handle, callback);
