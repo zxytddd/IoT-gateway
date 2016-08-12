@@ -2,23 +2,15 @@ var m2mid = require('lwm2m-id'),
 	fs = require('fs'),
 	clUtils = require('command-node');
 
-var lwm2m_read = require('./lwm2m_server').read,
-	lwm2m_write = require('./lwm2m_server').write,
-	lwm2m_start = require('./lwm2m_server').start,
-	lwm2m_execute = require('./lwm2m_server').execute,
-	lwm2m_observe = require('./lwm2m_server').observe,
-	lwm2m_registerParser = require('./lwm2m_server').registerParser,
-	lwm2m_listClients = require('./lwm2m_server').listClients,
-	aws_start = require('./aws_client').start,
-	aws_send = require('./aws_client').send,
-	ws_start = require('./ws_client').start,
-	ws_send = require('./ws_client').send,
-	http_start = require('./http_server').start,
+var lwm2mServer = require('./lwm2m_server'),
+	awsClient = require('./aws_client'),
+	webSocket = require('./ws_client'),
+	httpServer = require('./http_server'),
 	homeStateNew = require('./homeState').stateNew,
 	homeState = require('./homeState').state,
 	deepCopy = require('./utils').deepCopy,
 	getDifferent = require('./utils').getDifferent,
-	controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
+	controlMap;
 
 function registrationHandler(endpoint, lifetime, version, binding, payload, callback)
 {
@@ -49,7 +41,7 @@ function embarcFunction(endpoint, payload)
 	var Oid, i, Rid, 
 	stateSend = {};
 	/*parser the reg payload*/
-	lwm2m_registerParser(endpoint, payload, homeStateNew);
+	lwm2mServer.registerParser(endpoint, payload, homeStateNew);
 
 	/*observe some resource 
 	TODO: read the orgin data*/
@@ -58,7 +50,7 @@ function embarcFunction(endpoint, payload)
 	Rid = m2mid.getRid(Oid, 'sensorValue').value;
 	if (homeStateNew[endpoint][Oid]) {
 		for (i in homeStateNew[endpoint][Oid]) {
-				lwm2m_observe(endpoint, Oid, i, Rid, handleObserve(endpoint, Oid, i ,Rid), function () {
+				lwm2mServer.observe(endpoint, Oid, i, Rid, handleObserve(endpoint, Oid, i ,Rid), function () {
 			});
 		}
 	}
@@ -66,7 +58,7 @@ function embarcFunction(endpoint, payload)
 	Rid = m2mid.getRid(Oid, 'dInState').value;
 	if (homeStateNew[endpoint][Oid]) {
 		for (i in homeStateNew[endpoint][Oid]) {
-				lwm2m_observe(endpoint, Oid, i, Rid, handleObserve(endpoint, Oid, i ,Rid), function () {
+				lwm2mServer.observe(endpoint, Oid, i, Rid, handleObserve(endpoint, Oid, i ,Rid), function () {
 			});
 		}
 	}
@@ -84,7 +76,7 @@ function handleObserve(endpoint, Oid, i, Rid)
 //aws function
 function handleDelta(thingName, stateObject)
 {
-	/*find the change from stateObject and send it to emsk(using lwm2m_write()) and send it to aws iot*/
+	/*find the change from stateObject and send it to emsk(using lwm2mServer.write()) and send it to aws iot*/
 	var homeStateDelta = stateObject.state,
 		value, endpoint, Oid, i, Rid;
 	for (endpoint in homeStateDelta) {
@@ -157,7 +149,7 @@ function stateChange(endpoint, Oid, i, Rid, value)
 		}
 		stack.push(1);
 		//put updateUI() as callback function to send data to UI(freeboard and AWS).
-		lwm2m_write(endpoint, Oid, i, Rid, newValue, function () {
+		lwm2mServer.write(endpoint, Oid, i, Rid, newValue, function () {
 			homeStateNew[endpoint][Oid][i][Rid] = newValue;
 			stack.pop();
 			if (stack.length === 0)
@@ -214,7 +206,7 @@ function handleWSMessage(message)
 		console.log('Received Message: ' + msg);
 		//"{}" means that server order the whole state.
 		if (msg == "{}") {
-			ws_send(homeStateNew);
+			webSocket.send(homeStateNew);
 		} else {
 			var stateNew = JSON.parse(msg);
 			handleWSReported(stateNew);
@@ -239,8 +231,8 @@ function updateUI()
 {
 	var stateSend = getDifferent(homeStateNew, homeState);
 	if (stateSend !== undefined) {
-		aws_send(stateSend);
-		ws_send(stateSend);
+		awsClient.send(stateSend);
+		webSocket.send(stateSend);
 	}	
 }
 
@@ -251,14 +243,14 @@ function deleteEndpoint(endpoint)
 		homeStateNew[endpoint] = undefined;
 		homeState = deepCopy(homeStateNew);
 		stateSend[endpoint] = null;
-		aws_send(stateSend);
-		ws_send(stateSend);
+		awsClient.send(stateSend);
+		webSocket.send(stateSend);
 	}
 }
 //command-node
 function listClients(commands)
 {
-	lwm2m_listClients(resourceShow);
+	lwm2mServer.listClients(resourceShow);
 }
 
 function resourceShow(endpoint)
@@ -286,7 +278,7 @@ function write(commands)
 		Rid = commands[3],
 		value = commands[4];
 	if (Oid < 20) {
-		lwm2m_write(endpoint, Oid, i, Rid, value);
+		lwm2mServer.write(endpoint, Oid, i, Rid, value);
 	} else {
 		stateChange(endpoint, Oid, i, Rid, value);
 
@@ -299,14 +291,14 @@ function upload(commands)
 		if (err)
 			console.log('\nLwm2m: ERROR  \tRead firmware filed\n%s', JSON.stringify(error, null, 4));
 		else {
-			lwm2m_write(commands[0], 5, 0, 0, data, function callback(err) {
+			lwm2mServer.write(commands[0], 5, 0, 0, data, function callback(err) {
 				if (err) {
 					console.log('\nLwm2m: ERROR  \t%s', JSON.stringify(error, null, 4));
 					clUtils.prompt();
 				}
 				else {
 					console.log("\nLwm2m: SUCCESS\tFirmware upload successful");
-					lwm2m_execute(commands[0], 5, 0, 2);
+					lwm2mServer.execute(commands[0], 5, 0, 2);
 				}
 			});
 		}
@@ -315,12 +307,12 @@ function upload(commands)
 
 function execute(commands)
 {
-	lwm2m_execute(commands[0], commands[1], commands[2], commands[3]);
+	lwm2mServer.execute(commands[0], commands[1], commands[2], commands[3]);
 }
 
 function read(commands)
 {
-	lwm2m_read(commands[0], commands[1], commands[2], commands[3]);
+	lwm2mServer.read(commands[0], commands[1], commands[2], commands[3]);
 }
 function showState(commands)
 {
@@ -344,7 +336,7 @@ function showMap(commands)
 }
 function reboot(commands)
 {
-	lwm2m_execute(commands[0], 3, 0, 4);
+	lwm2mServer.execute(commands[0], 3, 0, 4);
 	clUtils.prompt();
 }
 function test1(commands)
@@ -535,8 +527,8 @@ var commands = {
 };
 
 //main
-lwm2m_start(registrationHandler, unregistrationHandler);
-ws_start(handleWSMessage);
-aws_start(handleDelta);
-http_start(80);
+lwm2mServer.start(registrationHandler, unregistrationHandler);
+webSocket.start(handleWSMessage);
+awsClient.start(handleDelta);
+httpServer.start(80);
 clUtils.initialize(commands, 'SmartHome-Server> ');
