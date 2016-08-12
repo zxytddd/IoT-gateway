@@ -4,7 +4,8 @@ var config = require('./config').lwm2m,
 	async = require('async'),
 	deepCopy = require('./utils').deepCopy;
 
-function setHandlers(registrationHandler, unregistrationHandler, serverInfo, callback) {
+function setHandlers(registrationHandler, unregistrationHandler, serverInfo, callback)
+{
 	lwm2mServer.setHandler(serverInfo, 'registration', registrationHandler);
 	lwm2mServer.setHandler(serverInfo, 'unregistration', function (device, callback) {
 		unregistrationHandler(device.name);
@@ -15,7 +16,8 @@ function setHandlers(registrationHandler, unregistrationHandler, serverInfo, cal
 	callback();
 }
 
-function handleResult(message) {
+function handleResult(message)
+{
 	return function(error) {
 		if (error) {
 			console.log('Lwm2m: ERROR  \t%s', JSON.stringify(error, null, 4));
@@ -25,7 +27,8 @@ function handleResult(message) {
 	};
 }
 
-function registerParser(endpoint, payload, homeStateNew){
+function registerParser(endpoint, payload, homeStateNew)
+{
 	var out = {},
 		found = payload.split('>,<'),
 		reported = {}, 
@@ -33,22 +36,22 @@ function registerParser(endpoint, payload, homeStateNew){
 		key;
 	found[0] = found[0].slice(1);
 	found[found.length - 1] = found[found.length - 1].slice(0, found[found.length - 1].length - 1);
-	for(key in found){
+	for (key in found) {
 		found[key] = found[key].slice(1);
 		found[key] = found[key].split('/');
 	}
-	for(key in found){
-		if(found[key][0] < 15)
+	for (key in found) {
+		if (found[key][0] < 15)
 			continue;
-		if(!out[found[key][0]])
+		if (!out[found[key][0]])
 			out[found[key][0]]={};
-		if(found[key][1])
+		if (found[key][1])
 			out[found[key][0]][found[key][1]]={};
 	}
 	reported = deepCopy(out);
-	for(var obj in reported){
-		for(var instance in reported[obj]){
-			switch(obj){
+	for (var obj in reported) {
+		for (var instance in reported[obj]) {
+			switch(obj) {
 				case "3303":
 					reported[obj][instance][5700] = NaN;
 					break;
@@ -69,31 +72,33 @@ function registerParser(endpoint, payload, homeStateNew){
 	homeStateNew[endpoint] = deepCopy(reported);
 }
 
-function start(registrationHandler, unregistrationHandler) {
+function start(registrationHandler, unregistrationHandler)
+{
 	async.waterfall([
 		async.apply(lwm2mServer.start, config),
 		async.apply(setHandlers, registrationHandler, unregistrationHandler),
 	], handleResult('Server started'));
 }
 
-function write(endpoint, Oid, i, Rid, value, callback) {
+function write(endpoint, Oid, i, Rid, value, callback)
+{
 	var def = m2mid.getRdef(Oid, Rid),
 		cb;
-	if (!def){
+	if (!def) {
 		handleResult()("Invalid Oid and Rid" + Oid + ": " + Rid);
 	}
-	if (def.access == 'R'){
-		if(callback){
+	if (def.access == 'R') {
+		if (callback) {
 			callback();
 		}
 		return ;
 	}
-	lwm2mServer.getDevice(endpoint, function (num, device){
-		if (device === undefined){
+	lwm2mServer.getDevice(endpoint, function (num, device) {
+		if (device === undefined) {
 			return;
 		}
 		var payload;
-		switch(def.type){
+		switch(def.type) {
 			case "boolean":
 				payload = value ? '1' : '0';
 				break;
@@ -107,8 +112,8 @@ function write(endpoint, Oid, i, Rid, value, callback) {
 				payload = value.toString();
 				break;
 		}
-		if(payload !== null){
-			if(callback){
+		if (payload !== null) {
+			if (callback) {
 				cb = callback;
 			} else {
 				cb = handleResult('Write to client');
@@ -120,15 +125,16 @@ function write(endpoint, Oid, i, Rid, value, callback) {
 	});
 }
 
-function read(endpoint, Oid, i, Rid, callback) {
-	lwm2mServer.getDevice(endpoint, function (num, device){
+function read(endpoint, Oid, i, Rid, callback)
+{
+	lwm2mServer.getDevice(endpoint, function (num, device) {
 		var cb;
 		if (device === null)
 			return;
-		if(callback){
+		if (callback) {
 			cb = callback;
 		} else {
-			cb = function (err, res){
+			cb = function (err, res) {
 				console.log(err);
 				handleResult(endpoint+":"+Oid+"/"+i+"/"+Rid+"\t"+res)(err);
 			};
@@ -137,12 +143,13 @@ function read(endpoint, Oid, i, Rid, callback) {
 });
 }
 
-function execute(endpoint, Oid, i, Rid, callback) {
-	lwm2mServer.getDevice(endpoint, function (num, device){
+function execute(endpoint, Oid, i, Rid, callback)
+{
+	lwm2mServer.getDevice(endpoint, function (num, device) {
 		var cb;
 		if (device === null)
 			return;
-		if (callback){
+		if (callback) {
 			cb = callback;
 		} else {
 			cb = handleResult('Command executed');
@@ -151,28 +158,28 @@ function execute(endpoint, Oid, i, Rid, callback) {
 	});
 }
 
-function observe(endpoint, Oid, i, Rid, handle, callback){
-	lwm2mServer.getDevice(endpoint, function (num, device){
-		if (device === null){
+function observe(endpoint, Oid, i, Rid, handle, callback)
+{
+	lwm2mServer.getDevice(endpoint, function (num, device) {
+		if (device === null) {
 			return;
 		}
 		lwm2mServer.observe(device.id, Oid, i, Rid, handle, callback);
 	});
 }
 
-function listClients(resourceShow) {
+function listClients(resourceShow)
+{
 	lwm2mServer.listDevices(function (error, deviceList) {
 		if (error) {
 			handleResult()(error);
 		} else {
 			console.log('\nDevice list:\n----------------------------\n');
-
 			for (var i=0; i < deviceList.length; i++) {
 				console.log('-> Device Id "%s"', deviceList[i].id);
 				console.log('\n%s\n', JSON.stringify(deviceList[i], null, 4));
 				resourceShow(deviceList[i].name);
 			}
-
 		}
 	});
 }

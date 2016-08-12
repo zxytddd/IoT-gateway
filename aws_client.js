@@ -8,11 +8,12 @@ var thingShadow = require('aws-iot-device-sdk').thingShadow,
 	handleResult = function (){},
 	stack = [];
 
-function start(handleDelta, callback){
+function start(handleDelta, callback)
+{
 	thingShadows = thingShadow(config);
 	thingShadows.on('connect', function() {
 		registerThing(thingName);
-		setTimeout(function (){
+		setTimeout(function () {
 			globalAWSFlag = true;
 			genericOperation('update', {state:{reported:null,desired:null}});
 		},5000);
@@ -70,41 +71,33 @@ function start(handleDelta, callback){
 	thingShadows.on('delta', handleDelta);
 }
 
-function registerThing(thingName) {
+function registerThing(thingName)
+{
 	thingShadows.register(thingName, {
 		ignoreDeltas: false,
 		operationTimeout: operationTimeout,
-    	enableVersioning: false,
+		enableVersioning: false,
 
 	});
 
 }
 
-function genericOperation(operation, state) {
+function genericOperation(operation, state)
+{
 	var clientToken = thingShadows[operation](thingName, state);
-
 	if (clientToken === null) {
-	 //
-	 // The thing shadow operation can't be performed because another one
-	 // is pending; if no other operation is pending, reschedule it after an 
-	 // interval which is greater than the thing shadow operation timeout.
-	 //
 		console.log('operation in progress, scheduling retry in 5s...');
 		setTimeout(function() {
 				genericOperation(operation, state);
 			}, 5000);
-
 	} else {
-	 //
-	 // Save the client token so that we know when the operation completes.
-	 //
 		stack.push(clientToken);
 	}
 }
 
-function shadowSend(state){
-
-	if(globalAWSFlag){
+function shadowSend(state)
+{
+	if (globalAWSFlag) {
 		console.log("send the state to aws:\n%s", JSON.stringify(state, null, 4));
 		genericOperation("update", {state: {reported: state, desired: state}});
 	} else {
