@@ -40,6 +40,10 @@ config.aws = {
 	region: 'ap-southeast-1',
 	// debug: true
 }
-
+// Configuration of the http server
+//--------------------------------------------------
+config.http = {
+    port: 80,
+}
 module.exports = config;
 

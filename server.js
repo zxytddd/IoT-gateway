@@ -17,13 +17,13 @@ function registrationHandler(endpoint, lifetime, version, binding, payload, call
 	setTimeout(function () {
 		switch(endpoint.slice(0, 6)) {
 			case "embARC":
-				console.log("\nLwm2m: SUCCESS\tA new client connected: %s", endpoint);	
+				console.log("Lwm2m: SUCCESS\tA new client connected: %s", endpoint);	
 				embarcFunction(endpoint, payload);
 				break;
 			case "other":
 				break;
 			default:
-				console.log("\nLwm2m: ERROR  \tUnknow client name: %s", endpoint);
+				console.log("Lwm2m: ERROR  \tUnknow client name: %s", endpoint);
 				break;
 		}
 		clUtils.prompt();
@@ -89,7 +89,7 @@ function handleDelta(thingName, stateObject)
 			}
 		}
 	}
-	console.log("\nget a delta:%s\n", JSON.stringify(stateObject, null, 4));
+	console.log("get a delta:%s\n", JSON.stringify(stateObject, null, 4));
 	clUtils.prompt();
 }
 
@@ -97,8 +97,9 @@ function stateChange(endpoint, Oid, i, Rid, value)
 {
 	var stack = [];
 	//simulate switch by push button.
-	if (Oid == m2mid.getOid("pushButton") && Rid == m2mid.getRid("pushButton", "dInState"))
+	if (Oid == m2mid.getOid("pushButton") && Rid == m2mid.getRid("pushButton", "dInState")){
 		value = "~";
+	}
 	//check map
 	var controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
 	stateMap(endpoint, Oid, i, Rid, controlMap);
@@ -152,8 +153,9 @@ function stateChange(endpoint, Oid, i, Rid, value)
 		lwm2mServer.write(endpoint, Oid, i, Rid, newValue, function () {
 			homeStateNew[endpoint][Oid][i][Rid] = newValue;
 			stack.pop();
-			if (stack.length === 0)
+			if (stack.length === 0){
 				updateUI();
+			}
 		});
 	}
 
@@ -164,11 +166,11 @@ function stateChange(endpoint, Oid, i, Rid, value)
 			//"~" is used to simulate the switch by push button.
 				if (value == "~") {
 					value = !homeStateNew[endpoint][Oid][i][Rid];
-				} else if (value == "true" || value == "1" || value == 1 || value === true)
+				} else if (value == "true" || value == "1" || value == 1 || value === true){
 					value = true;
-				else if (value == "false" || value == "0" || value === 0 || value === false)
+				} else if (value == "false" || value == "0" || value === 0 || value === false){
 					value = false;
-				else {
+				} else {
 					console.log("get wrong type data: not bool");
 					return ;
 				}
@@ -183,8 +185,8 @@ function stateChange(endpoint, Oid, i, Rid, value)
 				break;
 			case "string":
 				if (value == "~") {
-					value = !(homeStateNew[endpoint][Oid][i][Rid] == "true");
-				} 
+					value = (homeStateNew[endpoint][Oid][i][Rid] !== "true");
+				}
 				value = value.toString();
 				break;
 			case "opaque":
@@ -203,7 +205,7 @@ function handleWSMessage(message)
 {
 	if (message.type === 'utf8') {
 		var msg = message.utf8Data;
-		console.log('Received Message: ' + msg);
+		console.log("Received Message: " + msg);
 		//"{}" means that server order the whole state.
 		if (msg == "{}") {
 			webSocket.send(homeStateNew);
@@ -260,11 +262,11 @@ function resourceShow(endpoint)
 	}
 	var show = homeStateNew[endpoint];
 	for (var obj in show) {
-		console.log('%s: ', m2mid.getOid(obj).key);
+		console.log("%s: ", m2mid.getOid(obj).key);
 		for (var instance in show[obj]) {
-			console.log('\t%d:', instance);
+			console.log("\t%d:", instance);
 			for (var resource in show[obj][instance]) {
-				console.log('\t\t%s:\t\t%s', m2mid.getRid(obj, resource).key, show[obj][instance][resource].toString());
+				console.log("\t\t%s:\t\t%s", m2mid.getRid(obj, resource).key, show[obj][instance][resource].toString());
 			}
 		}
 	}
@@ -287,17 +289,18 @@ function write(commands)
 
 function upload(commands)
 {
-	fs.readFile(commands[1], 'utf8', function(err, data) {
-		if (err)
-			console.log('\nLwm2m: ERROR  \tRead firmware filed\n%s', JSON.stringify(error, null, 4));
+	fs.readFile(commands[1], "utf8", function(err, data) {
+		if (err){
+			console.log("Lwm2m: ERROR  \tRead firmware filed\n%s", JSON.stringify(err, null, 4));
+		}
 		else {
 			lwm2mServer.write(commands[0], 5, 0, 0, data, function callback(err) {
 				if (err) {
-					console.log('\nLwm2m: ERROR  \t%s', JSON.stringify(error, null, 4));
+					console.log("Lwm2m: ERROR  \t%s", JSON.stringify(err, null, 4));
 					clUtils.prompt();
 				}
 				else {
-					console.log("\nLwm2m: SUCCESS\tFirmware upload successful");
+					console.log("Lwm2m: SUCCESS\tFirmware upload successful");
 					lwm2mServer.execute(commands[0], 5, 0, 2);
 				}
 			});
@@ -316,8 +319,8 @@ function read(commands)
 }
 function showState(commands)
 {
-	console.log("\n"+JSON.stringify(homeStateNew));
-	console.log('\n\n');
+	console.log(JSON.stringify(homeStateNew));
+	console.log("\n");
 	console.log(JSON.stringify(homeState));
 	clUtils.prompt();
 }

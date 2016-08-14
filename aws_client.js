@@ -36,6 +36,7 @@ function start(handleDelta, callback)
 		globalAWSFlag = false;
 		thingShadows.unregister(thingName);
 		handleResult('close');
+		handleResult = function(){};
 	});
 
 	thingShadows.on('reconnect', function() {

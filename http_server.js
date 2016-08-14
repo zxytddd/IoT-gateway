@@ -1,8 +1,9 @@
-var http = require('http');
-var url=require('url');
-var fs=require('fs');
-var mine=require('./type').types;
-var path=require('path');
+var http = require('http'),
+	url = require('url'),
+	fs = require('fs'),
+	mine = require('./type').types,
+	config = require('./config').http,
+	path = require('path');
 
 var server = http.createServer(function (request, response)
 {
@@ -41,8 +42,11 @@ var server = http.createServer(function (request, response)
 		}
 	});
 });
-function start(port)
+function start()
 {
+	var port = 8080;
+	if(config.port !== undefined)
+		port = config.port;
 	server.listen(port);
 	console.log("Http server runing at port: " + port + ".");
 }
