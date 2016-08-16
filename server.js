@@ -152,10 +152,12 @@ function stateChange(endpoint, Oid, i, Rid, value)
 		//put updateUI() as callback function to send data to UI(freeboard and AWS).
 		lwm2mServer.write(endpoint, Oid, i, Rid, newValue, function () {
 			homeStateNew[endpoint][Oid][i][Rid] = newValue;
-			stack.pop();
-			if (stack.length === 0){
-				updateUI();
-			}
+			setTimeout(function (){
+				stack.pop();
+				if (stack.length === 0){
+					updateUI();
+				}
+			}, 500);
 		});
 	}
 
