@@ -53,16 +53,16 @@ function registerParser(endpoint, payload, homeStateNew)
 		for (var instance in reported[obj]) {
 			switch(obj) {
 				case "3303":
-					reported[obj][instance][5700] = NaN;
+					reported[obj][instance]["5700"] = NaN;
 					break;
 				case "3311":
-					reported[obj][instance][5850] = false;
+					reported[obj][instance]["5850"] = false;
 					break;
 				case "3347":
-					reported[obj][instance][5500] = false;
+					reported[obj][instance]["5500"] = false;
 					break;
 				case "3341":
-					reported[obj][instance][5527] = "";
+					reported[obj][instance]["5527"] = "";
 					break;
 				default:
 					break;
