@@ -10,7 +10,8 @@ var lwm2mServer = require('./lwm2m_server'),
 	homeState = require('./homeState').state,
 	deepCopy = require('./utils').deepCopy,
 	getDifferent = require('./utils').getDifferent,
-	controlMap;
+	controlMap,
+	lastChange = [,,,,];
 
 function registrationHandler(endpoint, lifetime, version, binding, payload, callback)
 {
@@ -95,11 +96,18 @@ function handleDelta(thingName, stateObject)
 
 function stateChange(endpoint, Oid, i, Rid, value)
 {
-	var stack = [];
+	var stack = [],
+		time = new Date();
+	time = time.getTime();
 	//simulate switch by push button.
 	if (Oid == m2mid.getOid("pushButton") && Rid == m2mid.getRid("pushButton", "dInState")){
 		value = "~";
 	}
+	if (endpoint === lastChange[0] && Oid === lastChange[1] && i === lastChange[2] &&
+		Rid === lastChange[3] && value === lastChange[4] && time - lastChange[5] < 150){
+		return;
+	}
+	lastChange = [endpoint, Oid, i, Rid, value, time];
 	//check map
 	var controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
 	stateMap(endpoint, Oid, i, Rid, controlMap);
@@ -157,7 +165,7 @@ function stateChange(endpoint, Oid, i, Rid, value)
 				if (stack.length === 0){
 					updateUI();
 				}
-			}, 500);
+			}, 150);
 		});
 	}
 
@@ -347,7 +355,7 @@ function reboot(commands)
 function test1(commands)
 {
 	homeStateNew = {
-		"endpoint1":{
+		"embARC_kitchen":{
 			"3303":{
 				"0":{
 					"5700": true
@@ -360,101 +368,9 @@ function test1(commands)
 			}
 		},
 
-		"endpoint2":{
-			"3303":{
-				"0":{
-					"5700": true
-				}
-			},
+		"embARC_door":{
 			"3311":{
 				"0":{
-					"5850":true
-				},
-				"1":{
-					"5850":true
-				}
-			}
-		},
-
-		"endpoint3":{
-			"3303":{
-				"0":{
-					"5700": true
-				}
-			}
-		},
-
-		"endpoint4":{
-			"3303":{
-				"0":{
-					"5700": true
-				}
-			},
-			"3311":{
-				"0":{
-					"5850":true
-				},
-				"1":{
-					"5850":true
-				}
-			}
-		},	
-		"endpoint5":{
-			"3303":{
-				"0":{
-					"5700": true
-				}
-			},
-			"3311":{
-				"0":{
-					"5850":true
-				},
-				"1":{
-					"5850":true
-				}
-			}
-		},	
-		"endpoint6":{
-			"3303":{
-				"0":{
-					"5700": true
-				}
-			},
-			"3311":{
-				"0":{
-					"5850":true
-				},
-				"1":{
-					"5850":true
-				}
-			}
-		},	
-		"endpoint7":{
-			"3303":{
-				"0":{
-					"5700": true
-				}
-			},
-			"3311":{
-				"0":{
-					"5850":true
-				},
-				"1":{
-					"5850":true
-				}
-			}
-		},	
-		"endpoint8":{
-			"3303":{
-				"0":{
-					"5700": true
-				}
-			},
-			"3311":{
-				"0":{
-					"5850":true
-				},
-				"1":{
 					"5850":true
 				}
 			}
@@ -463,7 +379,7 @@ function test1(commands)
 	updateUI();
 }
 function test2(commands) {
-	
+	deleteEndpoint("embARC_door");
 }
 var commands = {
 	'list': {
