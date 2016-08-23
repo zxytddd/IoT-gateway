@@ -112,7 +112,7 @@ function write(endpoint, Oid, i, Rid, value, callback)
 				payload = value.toString();
 				break;
 		}
-		if (payload !== null) {
+		if (payload !== undefined) {
 			if (callback) {
 				cb = callback;
 			} else {
@@ -129,7 +129,7 @@ function read(endpoint, Oid, i, Rid, callback)
 {
 	lwm2mServer.getDevice(endpoint, function (num, device) {
 		var cb;
-		if (device === null)
+		if (device === undefined)
 			return;
 		if (callback) {
 			cb = callback;
@@ -147,7 +147,7 @@ function execute(endpoint, Oid, i, Rid, callback)
 {
 	lwm2mServer.getDevice(endpoint, function (num, device) {
 		var cb;
-		if (device === null)
+		if (device === undefined)
 			return;
 		if (callback) {
 			cb = callback;
@@ -161,7 +161,7 @@ function execute(endpoint, Oid, i, Rid, callback)
 function observe(endpoint, Oid, i, Rid, handle, callback)
 {
 	lwm2mServer.getDevice(endpoint, function (num, device) {
-		if (device === null) {
+		if (device === undefined) {
 			return;
 		}
 		lwm2mServer.observe(device.id, Oid, i, Rid, handle, callback);

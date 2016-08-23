@@ -104,7 +104,7 @@ function stateChange(endpoint, Oid, i, Rid, value)
 		value = "~";
 	}
 	if (endpoint === lastChange[0] && Oid === lastChange[1] && i === lastChange[2] &&
-		Rid === lastChange[3] && value === lastChange[4] && time - lastChange[5] < 150){
+		Rid === lastChange[3] && value === lastChange[4] && time - lastChange[5] < 300){
 		return;
 	}
 	lastChange = [endpoint, Oid, i, Rid, value, time];
@@ -165,7 +165,7 @@ function stateChange(endpoint, Oid, i, Rid, value)
 				if (stack.length === 0){
 					updateUI();
 				}
-			}, 150);
+			}, 200);
 		});
 	}
 
