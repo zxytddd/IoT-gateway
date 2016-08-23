@@ -9,7 +9,7 @@ var server = http.createServer(function (request, response)
 {
 	var pathname = url.parse(request.url).pathname;
 	if (pathname.slice(-1) === "/") {
-		pathname = pathname + "index.html";
+		pathname = pathname + "index-auto.html";
 	}
 	var realPath = path.join("./freeboard", pathname);
 	//console.log(realPath);
