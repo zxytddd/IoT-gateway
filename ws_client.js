@@ -1,3 +1,11 @@
+/* ------------------------------------------
+LICENSE
+
+ * \version 
+ * \date 2016-08-25
+ * \author Xinyi Zhao(zxytddd@126.com)
+ * \brief	the functions about the web socket server.
+--------------------------------------------- */
 var WebSocketServer = require('websocket').server,
 	http = require('http'),
 	clients = [];

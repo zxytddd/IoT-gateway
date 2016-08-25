@@ -1,9 +1,19 @@
+/* ------------------------------------------
+LICENSE
+
+ * \version 
+ * \date 2016-08-25
+ * \author Xinyi Zhao(zxytddd@126.com)
+ * \brief	the functions about the lwm2m server.
+--------------------------------------------- */
 var config = require('./config').lwm2m,
 	lwm2mServer = require('lwm2m-node-lib').server,
 	m2mid = require('lwm2m-id'),
 	async = require('async'),
 	deepCopy = require('./utils').deepCopy;
-
+/**
+ * \brief	set the handle function when a client register or unregister.
+ */
 function setHandlers(registrationHandler, unregistrationHandler, serverInfo, callback)
 {
 	lwm2mServer.setHandler(serverInfo, 'registration', registrationHandler);
@@ -15,7 +25,9 @@ function setHandlers(registrationHandler, unregistrationHandler, serverInfo, cal
 	});
 	callback();
 }
-
+/**
+ * \brief	print the debug message to console.
+ */
 function handleResult(message)
 {
 	return function(error) {
@@ -26,13 +38,15 @@ function handleResult(message)
 		}
 	};
 }
-
+/**
+ * \brief	parser the resource from payload and add them to HomeState.
+ 			the format of payload is like this "<4/1>,<3303/0>,<3303/1>".
+ */
 function registerParser(endpoint, payload, homeStateNew)
 {
 	var out = {},
 		found = payload.split('>,<'),
-		reported = {}, 
-		desired={},
+		state = {}, 
 		key;
 	found[0] = found[0].slice(1);
 	found[found.length - 1] = found[found.length - 1].slice(0, found[found.length - 1].length - 1);
@@ -41,37 +55,44 @@ function registerParser(endpoint, payload, homeStateNew)
 		found[key] = found[key].split('/');
 	}
 	for (key in found) {
-		if (found[key][0] < 15)
+		if (found[key][0] < 15){
+			/*if object ID is less than 15, this object is used of device management rather than home state.*/
 			continue;
-		if (!out[found[key][0]])
+		}
+		if (!out[found[key][0]]){
 			out[found[key][0]]={};
-		if (found[key][1])
+		}
+		if (found[key][1]){
 			out[found[key][0]][found[key][1]]={};
+		}
 	}
-	reported = deepCopy(out);
-	for (var obj in reported) {
-		for (var instance in reported[obj]) {
+	state = deepCopy(out);
+	for (var obj in state) {
+		for (var instance in state[obj]) {
+			/*and the supported resources to each object.*/
 			switch(obj) {
 				case "3303":
-					reported[obj][instance]["5700"] = NaN;
+					state[obj][instance]["5700"] = NaN;
 					break;
 				case "3311":
-					reported[obj][instance]["5850"] = false;
+					state[obj][instance]["5850"] = false;
 					break;
 				case "3347":
-					reported[obj][instance]["5500"] = false;
+					state[obj][instance]["5500"] = false;
 					break;
 				case "3341":
-					reported[obj][instance]["5527"] = "";
+					state[obj][instance]["5527"] = "";
 					break;
 				default:
 					break;
 			}
 		}
 	}
-	homeStateNew[endpoint] = deepCopy(reported);
+	homeStateNew[endpoint] = deepCopy(state);
 }
-
+/**
+ * \brief	start the lwm2m server.
+ */
 function start(registrationHandler, unregistrationHandler)
 {
 	async.waterfall([
@@ -79,7 +100,9 @@ function start(registrationHandler, unregistrationHandler)
 		async.apply(setHandlers, registrationHandler, unregistrationHandler),
 	], handleResult('Server started'));
 }
-
+/**
+ * \brief	write the value to a specific resource.
+ */
 function write(endpoint, Oid, i, Rid, value, callback)
 {
 	var def = m2mid.getRdef(Oid, Rid),
@@ -124,13 +147,16 @@ function write(endpoint, Oid, i, Rid, value, callback)
 		}
 	});
 }
-
+/**
+ * \brief	read the value from a specific resource.
+ */
 function read(endpoint, Oid, i, Rid, callback)
 {
 	lwm2mServer.getDevice(endpoint, function (num, device) {
 		var cb;
-		if (device === undefined)
+		if (device === undefined){
 			return;
+		}
 		if (callback) {
 			cb = callback;
 		} else {
@@ -142,7 +168,9 @@ function read(endpoint, Oid, i, Rid, callback)
 		lwm2mServer.read(device.id, Oid, i, Rid, cb);
 });
 }
-
+/**
+ * \brief	execute the command of a specific resource.
+ */
 function execute(endpoint, Oid, i, Rid, callback)
 {
 	lwm2mServer.getDevice(endpoint, function (num, device) {
@@ -157,7 +185,9 @@ function execute(endpoint, Oid, i, Rid, callback)
 		lwm2mServer.execute(device.id, Oid, i, Rid, null, cb);
 	});
 }
-
+/**
+ * \brief	observe a specific resource.
+ */
 function observe(endpoint, Oid, i, Rid, handle, callback)
 {
 	lwm2mServer.getDevice(endpoint, function (num, device) {
@@ -167,7 +197,9 @@ function observe(endpoint, Oid, i, Rid, handle, callback)
 		lwm2mServer.observe(device.id, Oid, i, Rid, handle, callback);
 	});
 }
-
+/**
+ * \brief	list all client and its resources.
+ */
 function listClients(resourceShow)
 {
 	lwm2mServer.listDevices(function (error, deviceList) {

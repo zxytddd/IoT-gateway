@@ -1,4 +1,11 @@
+/* ------------------------------------------
+LICENSE
 
+ * \version 
+ * \date 2016-08-25
+ * \author Xinyi Zhao(zxytddd@126.com)
+ * \brief	the function about the AWS IoT cloud.
+--------------------------------------------- */
 var thingShadow = require('aws-iot-device-sdk').thingShadow,
 	config = require('./config').aws,
 	thingShadows,
@@ -7,7 +14,9 @@ var thingShadow = require('aws-iot-device-sdk').thingShadow,
 	globalAWSFlag = false,
 	handleResult = function (){},
 	stack = [];
-
+/**
+ * \brief	connect to the AWS IoT cloud.
+ */
 function start(handleDelta, callback)
 {
 	thingShadows = thingShadow(config);
@@ -16,7 +25,7 @@ function start(handleDelta, callback)
 		setTimeout(function () {
 			globalAWSFlag = true;
 			genericOperation('update', {state:{reported:null,desired:null}});
-		},5000);
+		}, 5000);
 		handleResult = function (message, error) {
 			if (error === 0) {
 				console.log('AWS  : SUCCESS\t%s', message);
@@ -25,11 +34,12 @@ function start(handleDelta, callback)
 			} else if(error === undefined){
 				console.log('AWS  :        \t%s', message);
 			}
-		}
-		if(callback)
+		};
+		if (callback) {
 			callback();
-		else
+		} else {
 			handleResult('connected', 0);
+		}
 	});
 
 	thingShadows.on('close', function() {

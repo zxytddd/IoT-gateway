@@ -1,3 +1,11 @@
+/* ------------------------------------------
+LICENSE
+
+ * \version 
+ * \date 2016-08-25
+ * \author Xinyi Zhao(zxytddd@126.com)
+ * \brief	the functions about the http server.
+--------------------------------------------- */
 var http = require('http'),
 	url = require('url'),
 	fs = require('fs'),

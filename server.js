@@ -1,21 +1,38 @@
+/* ------------------------------------------
+LICENSE
+
+ * \version 
+ * \date 2016-08-25
+ * \author Xinyi Zhao(zxytddd@126.com)
+ * \brief	The main funcion of the IoT gateway server, including the maintain of resource model HomeState, 
+ 			and brief logic of resource mapping.
+--------------------------------------------- */
+/*Node library 'lwm2m-id' define the all objects and resources ID. We could use its API to get the ID form 
+string name or conversely*/
 var m2mid = require('lwm2m-id'),
 	fs = require('fs'),
+/*Node library 'command-node' supplies a command line environment in order to debugging.*/	
 	clUtils = require('command-node');
 
-var lwm2mServer = require('./lwm2m_server'),
-	awsClient = require('./aws_client'),
-	webSocket = require('./ws_client'),
-	httpServer = require('./http_server'),
-	homeStateNew = require('./homeState').stateNew,
-	homeState = require('./homeState').state,
-	deepCopy = require('./utils').deepCopy,
-	getDifferent = require('./utils').getDifferent,
+var lwm2mServer = require('/lwm2m_server'),
+	awsClient = require('/aws_client'),
+	webSocket = require('/ws_client'),
+	httpServer = require('/http_server'),
+	homeStateNew = require('/homeState').stateNew,
+	homeState = require('/homeState').state,
+	deepCopy = require('/utils').deepCopy,
+	getDifferent = require('/utils').getDifferent,
 	controlMap,
 	lastChange = [,,,,];
-
+/**
+ * \brief	handler function when a new client registering.
+ * \param	endpoint	the name of client
+ * \param	payload		the resources information of this client.
+ */
 function registrationHandler(endpoint, lifetime, version, binding, payload, callback)
 {
 	setTimeout(function () {
+		/*check the tpye of clients*/
 		switch(endpoint.slice(0, 6)) {
 			case "embARC":
 				console.log("Lwm2m: SUCCESS\tA new client connected: %s", endpoint);	
@@ -31,12 +48,17 @@ function registrationHandler(endpoint, lifetime, version, binding, payload, call
 	}, 1000);
 	callback();
 }
-//Handler when a lwm2m client connect.
+/**
+ * \brief	handler function when a client unregister.
+ * \param	endpoint	The name of client
+ */
 function unregistrationHandler(endpoint)
 {
 	deleteEndpoint(endpoint);
 }
-
+/**
+ * \brief	parser the clients' resources, add them to the HomeState, and observe the resources.
+ */
 function embarcFunction(endpoint, payload)
 {
 	var Oid, i, Rid, 
@@ -44,7 +66,7 @@ function embarcFunction(endpoint, payload)
 	/*parser the reg payload*/
 	lwm2mServer.registerParser(endpoint, payload, homeStateNew);
 
-	/*observe some resource 
+	/*observe some resource and set the callback function.
 	TODO: read the orgin data*/
 	resourceShow(endpoint);
 	Oid = m2mid.getOid('temperature').value;
@@ -65,7 +87,9 @@ function embarcFunction(endpoint, payload)
 	}
 	updateUI();
 }
-
+/**
+ * \brief	return the handle function of observe.
+ */
 function handleObserve(endpoint, Oid, i, Rid)
 {
 	function obs(value) {
@@ -74,7 +98,9 @@ function handleObserve(endpoint, Oid, i, Rid)
 	return obs;
 }
 
-//aws function
+/**
+ * \brief	change the HomeState by the delta message received from UI.
+ */
 function handleDelta(thingName, stateObject)
 {
 	/*find the change from stateObject and send it to emsk(using lwm2mServer.write()) and send it to aws iot*/
@@ -93,16 +119,20 @@ function handleDelta(thingName, stateObject)
 	console.log("get a delta:%s\n", JSON.stringify(stateObject, null, 4));
 	clUtils.prompt();
 }
-
+/**
+ * \brief	change the HomeState, and its mapping resource.
+  * \param	value		new value of this resource.
+ */
 function stateChange(endpoint, Oid, i, Rid, value)
 {
 	var stack = [],
 		time = new Date();
 	time = time.getTime();
-	//simulate switch by push button.
+	/*simulate switch by push button.*/
 	if (Oid == m2mid.getOid("pushButton") && Rid == m2mid.getRid("pushButton", "dInState")){
 		value = "~";
 	}
+	/*if get the same change requirement in 300ms, ignore it.*/
 	if (endpoint === lastChange[0] && Oid === lastChange[1] && i === lastChange[2] &&
 		Rid === lastChange[3] && value === lastChange[4] && time - lastChange[5] < 300){
 		return;
@@ -110,65 +140,81 @@ function stateChange(endpoint, Oid, i, Rid, value)
 	lastChange = [endpoint, Oid, i, Rid, value, time];
 	//check map
 	var controlMap = JSON.parse(fs.readFileSync('./controlMap.json'));
-	stateMap(endpoint, Oid, i, Rid, controlMap);
-
-	function stateMap(endpoint, Oid, i, Rid, controlMap) {
+	resourcesMap(endpoint, Oid, i, Rid, controlMap);
+	/**
+	 * \brief	map the resource by controlMap.
+	 */
+	function resourcesMap(endpoint, Oid, i, Rid, controlMap) {
 		Oid = Oid.toString();
 		i = i.toString();
 		Rid = Rid.toString();
+		/*change the value of source resource.*/
 		valueChange(endpoint, Oid, i, Rid, value);
+		/*check whether source resource has been mapped.*/
 		if (!controlMap[endpoint] || !controlMap[endpoint][Oid] ||
 			!controlMap[endpoint][Oid][i] ||
 			controlMap[endpoint][Oid][i][Rid] === undefined) {
-			//no map
+			/*no map, stop mapping*/
 
 		} else {
-			//found map
+			/*found map*/
 			var mapTarget = controlMap[endpoint][Oid][i][Rid];
+			/*the format of map target could be [endpoint, Oid, i, Rid] or [[endpoint, Oid, i, Rid],[...]]
+			normalize them*/
 			if (typeof(mapTarget[0]) != "object") {
 				mapTarget = [mapTarget];
 			} 
+			/*change each map target*/
 			for (var key in mapTarget) {
 				if (mapTarget[key] == "0" || 
 					(endpoint == mapTarget[key][0] && 
 					Oid == mapTarget[key][1] && 
 					i == mapTarget[key][2] && 
 					Rid == mapTarget[key][3])) {
-					//self map
+					/*if the map target is itself, ignore it.*/
 
 				} else {
-					//map other resource
-					stateMap(mapTarget[key][0], mapTarget[key][1], mapTarget[key][2], mapTarget[key][3], controlMap);
+					/*change the target resource, this resource also might be mapped.*/
+					resourcesMap(mapTarget[key][0], mapTarget[key][1], mapTarget[key][2], mapTarget[key][3], controlMap);
 				}
 			}
 		}
 	}
-
+	/**
+	 * \brief	change the value of HomeState and update the UI.
+	 */
 	function valueChange(endpoint, Oid, i, Rid, value) {
 		if (!homeStateNew[endpoint] || !homeStateNew[endpoint][Oid] ||
 			!homeStateNew[endpoint][Oid][i] ||
 			homeStateNew[endpoint][Oid][i][Rid] === undefined) {
-			//target resource is not in homeStateNew.
+			/*target resource is not in homeState.*/
 			return;
 		}
-		//check whether value is legal.
+		/*check whether value is legal.*/
 		var newValue = dataTypeCheck(endpoint, Oid, i, Rid, value);
 		if (newValue === undefined) {
 			return;
 		}
+		/*using a stack here to check whether all resources has been wrote to endpoints.*/
 		stack.push(1);
-		//put updateUI() as callback function to send data to UI(freeboard and AWS).
 		lwm2mServer.write(endpoint, Oid, i, Rid, newValue, function () {
 			homeStateNew[endpoint][Oid][i][Rid] = newValue;
+			/*set a 200ms timeout to wait all resources writing command has been sent.*/
 			setTimeout(function (){
 				stack.pop();
+				/*if the stack is empty, all resources has been wroten to the endpoints, 
+				so the UI should be updated.*/
 				if (stack.length === 0){
 					updateUI();
 				}
 			}, 200);
 		});
 	}
-
+	/**
+	 * \brief	check legality of the value of this resource, and change the value to an appropriate format. 
+	 * \retval	undefine	the value is illegal.
+	 * \retval	value		the lagal value
+	 */
 	function dataTypeCheck(endpoint, Oid, i, Rid, value) {
 		var def = m2mid.getRdef(Oid, Rid);
 		switch(def.type) {
@@ -209,8 +255,9 @@ function stateChange(endpoint, Oid, i, Rid, value)
 		return value;
 	}
 }
-//websocket
-
+/**
+ * \brief	handle function when get the message from web socket.
+ */
 function handleWSMessage(message)
 {
 	if (message.type === 'utf8') {
@@ -227,7 +274,9 @@ function handleWSMessage(message)
 		console.log("unknow message type");
 	}
 }
-
+/**
+ * \brief	handle the new state received from web socket.
+ */
 function handleWSReported(stateNew)
 {
 	for (var key in stateNew) {
@@ -238,7 +287,10 @@ function handleWSReported(stateNew)
 		}
 	}
 }
-
+/**
+ * \brief	find the different between new HomeState the old, and send the different state to UI, including the 
+ 			AWS and web socket.
+ */
 function updateUI()
 {
 	var stateSend = getDifferent(homeStateNew, homeState);
@@ -247,19 +299,23 @@ function updateUI()
 		webSocket.send(stateSend);
 	}	
 }
-
+/**
+ * \brief	delete the endpoint from HomeState and update the UI.
+ */
 function deleteEndpoint(endpoint)
 {
 	if (homeStateNew[endpoint] !== undefined) {
 		var stateSend={};
+		/*delete the endpoint from HomeState*/
 		homeStateNew[endpoint] = undefined;
 		homeState = deepCopy(homeStateNew);
+		/*send the 'null' to inform the UI that this endpoint has been deleted.*/
 		stateSend[endpoint] = null;
 		awsClient.send(stateSend);
 		webSocket.send(stateSend);
 	}
 }
-//command-node
+/*here's some command to debug*/
 function listClients(commands)
 {
 	lwm2mServer.listClients(resourceShow);
@@ -446,8 +502,7 @@ var commands = {
 		handler: showState,
 	}
 };
-
-//main
+/*start the lwm2m server, web socket server, http server, command line and connect to AWS IoT cloud.*/
 lwm2mServer.start(registrationHandler, unregistrationHandler);
 webSocket.start(handleWSMessage);
 awsClient.start(handleDelta);

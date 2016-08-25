@@ -1,6 +1,12 @@
+/* ------------------------------------------
+LICENSE
+
+ * \version 
+ * \date 2016-08-25
+ * \author Xinyi Zhao(zxytddd@126.com)
+ * \brief   configuration of lwm2m aws and http.
+--------------------------------------------- */
 var config = {};
-// Configuration of the LWTM2M Server
-//--------------------------------------------------
 config.lwm2m = {
     port: 5683,                         // Port where the server will be listening
     lifetimeCheckInterval: 1000,        // Minimum interval between lifetime checks in ms
@@ -39,11 +45,11 @@ config.aws = {
 	clientId: 'myNode1',
 	region: 'ap-southeast-1',
 	// debug: true
-}
+};
 // Configuration of the http server
 //--------------------------------------------------
 config.http = {
     port: 80,
-}
+};
 module.exports = config;
 
