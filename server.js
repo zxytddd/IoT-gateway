@@ -14,14 +14,14 @@ var m2mid = require('lwm2m-id'),
 /*Node library 'command-node' supplies a command line environment in order to debugging.*/	
 	clUtils = require('command-node');
 
-var lwm2mServer = require('/lwm2m_server'),
-	awsClient = require('/aws_client'),
-	webSocket = require('/ws_client'),
-	httpServer = require('/http_server'),
-	homeStateNew = require('/homeState').stateNew,
-	homeState = require('/homeState').state,
-	deepCopy = require('/utils').deepCopy,
-	getDifferent = require('/utils').getDifferent,
+var lwm2mServer = require('./lwm2m_server'),
+	awsClient = require('./aws_client'),
+	webSocket = require('./ws_client'),
+	httpServer = require('./http_server'),
+	homeStateNew = require('./homeState').stateNew,
+	homeState = require('./homeState').state,
+	deepCopy = require('./utils').deepCopy,
+	getDifferent = require('./utils').getDifferent,
 	controlMap,
 	lastChange = [,,,,];
 /**
